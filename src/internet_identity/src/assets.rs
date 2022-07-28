@@ -50,7 +50,7 @@ lazy_static! {
         index_html
     };
 
-    static ref FOOBAR: ::baz::Ass = {
+    static ref index: ::baz::Ass = {
         let hash = sha2::Sha256::digest(INDEX_HTML_SETUP_JS.as_bytes()).into();
 
         ::baz::Ass {
@@ -112,23 +112,15 @@ pub fn init_asses() {
 }
 
 
+static loader: &'static ::baz::Ass = &::foobar::foobar!("../../dist/loader.webp");
+
 // TODO: infer content type?
-fn get_asses() -> [(&'static str, ::baz::Ass, ContentType); 4] {
-
-    let hash = sha2::Sha256::digest(INDEX_HTML_SETUP_JS.as_bytes()).into();
-
-    let index = ::baz::Ass {
-        content: INDEX_HTML_SETUP_JS.as_bytes(),
-        sha256: hash,
-        transform: ::baz::Ta::Identity,
-    };
-
+fn get_asses() -> [(&'static str, &'static ::baz::Ass, ContentType); 3] {
 
     [
-        ("/index.html", index, ContentType::HTML),
-        ("/loader.webp", foobar::foobar!("../../dist/loader.webp"), ContentType::WEBP),
-        ("/favicon.ico", foobar::foobar!("../../dist/favicon.ico"), ContentType::ICO),
-        ("/ic-badge.svg", foobar::foobar!("../../dist/ic-badge.svg"), ContentType::SVG),
+        ("/", &index, ContentType::HTML),
+        ("/index.html", &index, ContentType::HTML),
+        ("/loader.webp", loader, ContentType::WEBP),
     ]
 }
 
