@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-
 internet_identity_interface = { path = "../internet_identity_interface" }
+foobar = { path = "../foobar" }
+baz = { path = "../baz" }
 
 hex = "0.4"
 lazy_static = "1.4"
@@ -33,6 +34,7 @@ ic-types = "0.3"
 
 [dev-dependencies]
 hex-literal = "0.2.1"
+foobar = { path = "../foobar" }
 
 [features]
 # the dummy_captcha feature which ensures the captcha string is always "a"

@@ -6,6 +6,7 @@ use crate::{ASSETS, STATE};
 use ic_cdk::api;
 use lazy_static::lazy_static;
 use sha2::Digest;
+use foobar;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ContentEncoding {
@@ -48,6 +49,16 @@ lazy_static! {
         );
         index_html
     };
+
+    static ref FOOBAR: ::baz::Ass = {
+        let hash = sha2::Sha256::digest(INDEX_HTML_SETUP_JS.as_bytes()).into();
+
+        ::baz::Ass {
+            content: INDEX_HTML_SETUP_JS.as_bytes(),
+            sha256: hash,
+            transform: ::baz::Ta::Identity,
+        }
+    };
 }
 
 // used both in init and post_upgrade
@@ -58,6 +69,7 @@ pub fn init_assets() {
         ASSETS.with(|a| {
             let mut assets = a.borrow_mut();
             for (path, content, content_encoding, content_type) in get_assets() {
+                // let foo: String = sha2::Sha256::digest(content);
                 asset_hashes.insert(path, sha2::Sha256::digest(content).into());
                 let mut headers = match content_encoding {
                     ContentEncoding::Identity => vec![],
@@ -75,9 +87,54 @@ pub fn init_assets() {
     });
 }
 
+pub fn init_asses() {
+    STATE.with(|s| {
+        let mut asset_hashes = s.asset_hashes.borrow_mut();
+
+        ASSETS.with(|a| {
+            let mut assets = a.borrow_mut();
+            for (path, ass, content_type) in get_asses() {
+                asset_hashes.insert(path, ass.sha256);
+                let mut headers = match ass.transform {
+                    ::baz::Ta::Identity => vec![],
+                    ::baz::Ta::Gzip => {
+                        vec![("Content-Encoding".to_string(), "gzip".to_string())]
+                    }
+                };
+                headers.push((
+                    "Content-Type".to_string(),
+                    content_type.to_mime_type_string(),
+                ));
+                assets.insert(path, (headers, &ass.content));
+            }
+        });
+    });
+}
+
+
+// TODO: infer content type?
+fn get_asses() -> [(&'static str, ::baz::Ass, ContentType); 4] {
+
+    let hash = sha2::Sha256::digest(INDEX_HTML_SETUP_JS.as_bytes()).into();
+
+    let index = ::baz::Ass {
+        content: INDEX_HTML_SETUP_JS.as_bytes(),
+        sha256: hash,
+        transform: ::baz::Ta::Identity,
+    };
+
+
+    [
+        ("/index.html", index, ContentType::HTML),
+        ("/loader.webp", foobar::foobar!("../../dist/loader.webp"), ContentType::WEBP),
+        ("/favicon.ico", foobar::foobar!("../../dist/favicon.ico"), ContentType::ICO),
+        ("/ic-badge.svg", foobar::foobar!("../../dist/ic-badge.svg"), ContentType::SVG),
+    ]
+}
+
 // Get all the assets. Duplicated assets like index.html are shared and generally all assets are
 // prepared only once (like injecting the canister ID).
-fn get_assets() -> [(&'static str, &'static [u8], ContentEncoding, ContentType); 8] {
+fn get_assets() -> [(&'static str, &'static [u8], ContentEncoding, ContentType); 5] {
     let index_html: &[u8] = INDEX_HTML_STR.as_bytes();
     [
         (
@@ -111,6 +168,7 @@ fn get_assets() -> [(&'static str, &'static [u8], ContentEncoding, ContentType);
             ContentEncoding::GZip,
             ContentType::JS,
         ),
+        /*
         (
             "/loader.webp",
             include_bytes!("../../../dist/loader.webp"),
@@ -129,5 +187,6 @@ fn get_assets() -> [(&'static str, &'static [u8], ContentEncoding, ContentType);
             ContentEncoding::Identity,
             ContentType::SVG,
         ),
+        */
     ]
 }
