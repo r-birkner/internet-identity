@@ -127,9 +127,6 @@ function generateWebpackConfigForCanister(name, info) {
         "II_DUMMY_AUTH": "0",
         "II_DUMMY_CAPTCHA": "0",
       }),
-      new CompressionPlugin({
-        test: /\.js(\?.*)?$/i,
-      }),
       new webpack.IgnorePlugin(/^\.\/wordlists\/(?!english)/, /bip39\/src$/),
     ],
   };
