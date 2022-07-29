@@ -2,7 +2,6 @@ use crate::assets::init_assets;
 use crate::AddTentativeDeviceResponse::{AddedTentatively, AnotherDeviceTentativelyAdded};
 use crate::RegistrationState::{DeviceRegistrationModeActive, DeviceTentativelyAdded};
 use crate::VerifyTentativeDeviceResponse::{NoDeviceToVerify, WrongCode};
-use assets::ContentType;
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::call::call;
 use ic_cdk::api::{caller, data_certificate, id, set_certified_data, time, trap};

@@ -1,4 +1,4 @@
-use crate::{assets, AssetHashes, ContentType, ASSETS, LABEL_ASSETS, LABEL_SIG, STATE};
+use crate::{assets, AssetHashes, ASSETS, LABEL_ASSETS, LABEL_SIG, STATE};
 use ic_cdk::api::stable::stable64_size;
 use ic_cdk::api::{data_certificate, time};
 use ic_cdk::trap;
@@ -9,18 +9,6 @@ use internet_identity_interface::{HeaderField, HttpRequest, HttpResponse};
 use serde::Serialize;
 use serde_bytes::{ByteBuf, Bytes};
 use std::borrow::Cow;
-
-impl ContentType {
-    pub fn to_mime_type_string(&self) -> String {
-        match self {
-            ContentType::HTML => "text/html".to_string(),
-            ContentType::JS => "text/javascript".to_string(),
-            ContentType::ICO => "image/vnd.microsoft.icon".to_string(),
-            ContentType::WEBP => "image/webp".to_string(),
-            ContentType::SVG => "image/svg+xml".to_string(),
-        }
-    }
-}
 
 pub fn http_request(req: HttpRequest) -> HttpResponse {
     let parts: Vec<&str> = req.url.split('?').collect();

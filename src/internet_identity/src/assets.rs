@@ -7,15 +7,6 @@ use ic_cdk::api;
 use lazy_static::lazy_static;
 use sha2::Digest;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum ContentType {
-    HTML,
-    JS,
-    ICO,
-    WEBP,
-    SVG,
-}
-
 lazy_static! {
     // The <script> tag that sets the canister ID and loads the 'index.js'
     static ref INDEX_HTML_SETUP_JS: String = {
