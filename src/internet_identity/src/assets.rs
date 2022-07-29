@@ -8,12 +8,6 @@ use lazy_static::lazy_static;
 use sha2::Digest;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum ContentEncoding {
-    Identity,
-    GZip,
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub enum ContentType {
     HTML,
     JS,
@@ -53,9 +47,10 @@ lazy_static! {
         let hash = sha2::Sha256::digest(INDEX_HTML_SETUP_JS.as_bytes()).into();
 
         ::baz::Ass {
-            content: INDEX_HTML_SETUP_JS.as_bytes(),
+            content: INDEX_HTML_STR.as_bytes(),
             sha256: hash,
             content_encoding: ::baz::ContentEncoding::Identity,
+            content_type: "text/html",
         }
     };
 }
@@ -67,32 +62,7 @@ pub fn init_assets() {
 
         ASSETS.with(|a| {
             let mut assets = a.borrow_mut();
-            for (path, content, content_encoding, content_type) in get_assets() {
-                // let foo: String = sha2::Sha256::digest(content);
-                asset_hashes.insert(path, sha2::Sha256::digest(content).into());
-                let mut headers = match content_encoding {
-                    ContentEncoding::Identity => vec![],
-                    ContentEncoding::GZip => {
-                        vec![("Content-Encoding".to_string(), "gzip".to_string())]
-                    }
-                };
-                headers.push((
-                    "Content-Type".to_string(),
-                    content_type.to_mime_type_string(),
-                ));
-                assets.insert(path, (headers, content));
-            }
-        });
-    });
-}
-
-pub fn init_asses() {
-    STATE.with(|s| {
-        let mut asset_hashes = s.asset_hashes.borrow_mut();
-
-        ASSETS.with(|a| {
-            let mut assets = a.borrow_mut();
-            for (path, ass, content_type) in get_asses() {
+            for (path, ass) in get_assets() {
                 asset_hashes.insert(path, ass.sha256);
                 let mut headers = match ass.content_encoding {
                     ::baz::ContentEncoding::Identity => vec![],
@@ -102,7 +72,7 @@ pub fn init_asses() {
                 };
                 headers.push((
                     "Content-Type".to_string(),
-                    content_type.to_mime_type_string(),
+                    ass.content_type.to_string(),
                 ));
                 assets.insert(path, (headers, &ass.content));
             }
@@ -111,81 +81,23 @@ pub fn init_asses() {
 }
 
 
-static INDEX_JS: &'static ::baz::Ass = &::foobar::foobar!("../../dist/index.js");
-static LOADER_WEBP: &'static ::baz::Ass = &::foobar::foobar!("../../dist/loader.webp");
-static FAVICON_ICO: &'static ::baz::Ass = &::foobar::foobar!("../../dist/favicon.ico");
-static IC_BADGE_SVG: &'static ::baz::Ass = &::foobar::foobar!("../../dist/ic-badge.svg");
-
-// TODO: infer content type?
-fn get_asses() -> [(&'static str, &'static ::baz::Ass, ContentType); 8] {
-
-    [
-        ("/", &INDEX_HTML, ContentType::HTML),
-        ("/faq", &INDEX_HTML, ContentType::HTML),
-        ("/about", &INDEX_HTML, ContentType::HTML),
-        ("/index.html", &INDEX_HTML, ContentType::HTML),
-        ("/index.js", INDEX_JS, ContentType::JS),
-        ("/loader.webp", LOADER_WEBP, ContentType::WEBP),
-        ("/favicon.ico", FAVICON_ICO, ContentType::ICO),
-        ("/ic-badge.svg", IC_BADGE_SVG, ContentType::SVG),
-    ]
-}
+static INDEX_JS: &'static ::baz::Ass = &::foobar::asset_gzipped!("../../dist/index.js");
+static LOADER_WEBP: &'static ::baz::Ass = &::foobar::asset!("../../dist/loader.webp");
+static FAVICON_ICO: &'static ::baz::Ass = &::foobar::asset!("../../dist/favicon.ico");
+static IC_BADGE_SVG: &'static ::baz::Ass = &::foobar::asset!("../../dist/ic-badge.svg");
 
 // Get all the assets. Duplicated assets like index.html are shared and generally all assets are
 // prepared only once (like injecting the canister ID).
-fn get_assets() -> [(&'static str, &'static [u8], ContentEncoding, ContentType); 5] {
-    let index_html: &[u8] = INDEX_HTML_STR.as_bytes();
+fn get_assets() -> [(&'static str, &'static ::baz::Ass); 8] {
+
     [
-        (
-            "/",
-            index_html,
-            ContentEncoding::Identity,
-            ContentType::HTML,
-        ),
-        // The FAQ and about pages are the same webapp, but the webapp routes to the correct page
-        (
-            "/faq",
-            index_html,
-            ContentEncoding::Identity,
-            ContentType::HTML,
-        ),
-        (
-            "/about",
-            index_html,
-            ContentEncoding::Identity,
-            ContentType::HTML,
-        ),
-        (
-            "/index.html",
-            index_html,
-            ContentEncoding::Identity,
-            ContentType::HTML,
-        ),
-        (
-            "/index.js",
-            include_bytes!("../../../dist/index.js.gz"),
-            ContentEncoding::GZip,
-            ContentType::JS,
-        ),
-        /*
-        (
-            "/loader.webp",
-            include_bytes!("../../../dist/loader.webp"),
-            ContentEncoding::Identity,
-            ContentType::WEBP,
-        ),
-        (
-            "/favicon.ico",
-            include_bytes!("../../../dist/favicon.ico"),
-            ContentEncoding::Identity,
-            ContentType::ICO,
-        ),
-        (
-            "/ic-badge.svg",
-            include_bytes!("../../../dist/ic-badge.svg"),
-            ContentEncoding::Identity,
-            ContentType::SVG,
-        ),
-        */
+        ("/", &INDEX_HTML),
+        ("/faq", &INDEX_HTML),
+        ("/about", &INDEX_HTML),
+        ("/index.html", &INDEX_HTML),
+        ("/index.js", INDEX_JS),
+        ("/loader.webp", LOADER_WEBP),
+        ("/favicon.ico", FAVICON_ICO),
+        ("/ic-badge.svg", IC_BADGE_SVG),
     ]
 }

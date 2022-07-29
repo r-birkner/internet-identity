@@ -1,5 +1,4 @@
 use crate::assets::init_assets;
-use crate::assets::init_asses;
 use crate::AddTentativeDeviceResponse::{AddedTentatively, AnotherDeviceTentativelyAdded};
 use crate::RegistrationState::{DeviceRegistrationModeActive, DeviceTentativelyAdded};
 use crate::VerifyTentativeDeviceResponse::{NoDeviceToVerify, WrongCode};
@@ -925,7 +924,6 @@ fn stats() -> InternetIdentityStats {
 
 #[init]
 fn init(maybe_arg: Option<InternetIdentityInit>) {
-    init_asses();
     init_assets();
     STATE.with(|state| {
         if let Some(arg) = maybe_arg {
@@ -940,7 +938,6 @@ fn init(maybe_arg: Option<InternetIdentityInit>) {
 
 #[post_upgrade]
 fn retrieve_data() {
-    init_asses();
     init_assets();
     STATE.with(|s| {
         s.last_upgrade_timestamp.set(time() as u64);
