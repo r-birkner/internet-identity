@@ -17,18 +17,17 @@ pub fn foobar(item: TokenStream) -> TokenStream {
 
     let fin = here.join(foo);
 
-    println!("The string is {:?}", fin);
-
     let content = std::fs::read(&fin).unwrap();
     let hash = &sha2::Sha256::digest(&content);
     let fin = fin.into_os_string().into_string().unwrap();
 
     (quote! {
-        ::baz::Ass{ content: include_bytes!(#fin), sha256: [#(#hash),*], transform: ::baz::Ta::Identity }
+        ::baz::Ass{ content: include_bytes!(#fin), sha256: [#(#hash),*], content_encoding: ::baz::ContentEncoding::Identity }
     }).into()
 }
 
 
+/*
 #[proc_macro]
 pub fn asset_sha256(item: TokenStream) -> TokenStream {
 
@@ -45,11 +44,9 @@ pub fn asset_sha256(item: TokenStream) -> TokenStream {
 
     let fin = here.join(foo);
 
-    println!("The string is {:?}", fin);
-
     let content = std::fs::read(&fin).unwrap();
     let hash = &sha2::Sha256::digest(&content);
-    let fin = fin.into_os_string().into_string().unwrap();
 
     quote! { [#(#hash).*] }.into()
 }
+*/

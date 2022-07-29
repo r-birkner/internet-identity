@@ -6,7 +6,6 @@ use crate::{ASSETS, STATE};
 use ic_cdk::api;
 use lazy_static::lazy_static;
 use sha2::Digest;
-use foobar;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ContentEncoding {
@@ -50,13 +49,13 @@ lazy_static! {
         index_html
     };
 
-    static ref index: ::baz::Ass = {
+    static ref INDEX_HTML: ::baz::Ass = {
         let hash = sha2::Sha256::digest(INDEX_HTML_SETUP_JS.as_bytes()).into();
 
         ::baz::Ass {
             content: INDEX_HTML_SETUP_JS.as_bytes(),
             sha256: hash,
-            transform: ::baz::Ta::Identity,
+            content_encoding: ::baz::ContentEncoding::Identity,
         }
     };
 }
@@ -95,9 +94,9 @@ pub fn init_asses() {
             let mut assets = a.borrow_mut();
             for (path, ass, content_type) in get_asses() {
                 asset_hashes.insert(path, ass.sha256);
-                let mut headers = match ass.transform {
-                    ::baz::Ta::Identity => vec![],
-                    ::baz::Ta::Gzip => {
+                let mut headers = match ass.content_encoding {
+                    ::baz::ContentEncoding::Identity => vec![],
+                    ::baz::ContentEncoding::GZip => {
                         vec![("Content-Encoding".to_string(), "gzip".to_string())]
                     }
                 };
@@ -112,15 +111,23 @@ pub fn init_asses() {
 }
 
 
-static loader: &'static ::baz::Ass = &::foobar::foobar!("../../dist/loader.webp");
+static INDEX_JS: &'static ::baz::Ass = &::foobar::foobar!("../../dist/index.js");
+static LOADER_WEBP: &'static ::baz::Ass = &::foobar::foobar!("../../dist/loader.webp");
+static FAVICON_ICO: &'static ::baz::Ass = &::foobar::foobar!("../../dist/favicon.ico");
+static IC_BADGE_SVG: &'static ::baz::Ass = &::foobar::foobar!("../../dist/ic-badge.svg");
 
 // TODO: infer content type?
-fn get_asses() -> [(&'static str, &'static ::baz::Ass, ContentType); 3] {
+fn get_asses() -> [(&'static str, &'static ::baz::Ass, ContentType); 8] {
 
     [
-        ("/", &index, ContentType::HTML),
-        ("/index.html", &index, ContentType::HTML),
-        ("/loader.webp", loader, ContentType::WEBP),
+        ("/", &INDEX_HTML, ContentType::HTML),
+        ("/faq", &INDEX_HTML, ContentType::HTML),
+        ("/about", &INDEX_HTML, ContentType::HTML),
+        ("/index.html", &INDEX_HTML, ContentType::HTML),
+        ("/index.js", INDEX_JS, ContentType::JS),
+        ("/loader.webp", LOADER_WEBP, ContentType::WEBP),
+        ("/favicon.ico", FAVICON_ICO, ContentType::ICO),
+        ("/ic-badge.svg", IC_BADGE_SVG, ContentType::SVG),
     ]
 }
 

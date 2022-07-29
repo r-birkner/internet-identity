@@ -1,11 +1,21 @@
 pub struct Ass {
     pub content: &'static [u8],
     pub sha256: [u8; 32],
-    pub transform: Ta,
+    pub content_encoding: ContentEncoding,
 
 }
 
-pub enum Ta {
+#[derive(Debug, PartialEq, Eq)]
+pub enum ContentEncoding {
     Identity,
-    Gzip
+    GZip,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ContentType {
+    HTML,
+    JS,
+    ICO,
+    WEBP,
+    SVG,
 }
