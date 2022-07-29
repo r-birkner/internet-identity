@@ -70,16 +70,12 @@ pub fn init_assets() {
                         vec![("Content-Encoding".to_string(), "gzip".to_string())]
                     }
                 };
-                headers.push((
-                    "Content-Type".to_string(),
-                    ass.content_type.to_string(),
-                ));
+                headers.push(("Content-Type".to_string(), ass.content_type.to_string()));
                 assets.insert(path, (headers, &ass.content));
             }
         });
     });
 }
-
 
 static INDEX_JS: &'static ::baz::Ass = &::foobar::asset_gzipped!("../../dist/index.js");
 static LOADER_WEBP: &'static ::baz::Ass = &::foobar::asset!("../../dist/loader.webp");
@@ -89,7 +85,6 @@ static IC_BADGE_SVG: &'static ::baz::Ass = &::foobar::asset!("../../dist/ic-badg
 // Get all the assets. Duplicated assets like index.html are shared and generally all assets are
 // prepared only once (like injecting the canister ID).
 fn get_assets() -> [(&'static str, &'static ::baz::Ass); 8] {
-
     [
         ("/", &INDEX_HTML),
         ("/faq", &INDEX_HTML),
