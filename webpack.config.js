@@ -3,6 +3,9 @@ const webpack = require("webpack");
 const CopyPlugin = require("copy-webpack-plugin");
 const CompressionPlugin = require("compression-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+
 require("dotenv").config();
 
 /** Read the II canister ID from dfx's local state */
@@ -46,30 +49,81 @@ class InjectCanisterIdPlugin {
 const isProduction = process.env.NODE_ENV === "production";
 const devtool = isProduction ? undefined : "source-map";
 
-/**
- * Generate a webpack configuration for a canister.
- */
+/* Default configuration */
+const defaults = {
+  mode: isProduction ? "production" : "development",
+  devtool,
+  optimization: {
+    minimize: isProduction,
+    minimizer: [new CssMinimizerPlugin(), "..."],
+  },
+  output: { clean: true },
+  resolve: {
+    extensions: [".js", ".ts"],
+    fallback: {
+      stream: require.resolve("stream-browserify/"),
+    },
+  },
+  module: {
+    rules: [
+      { test: /\.(ts)$/, loader: "ts-loader" },
+      {
+        test: /\.css$/,
+        use: [
+          isProduction ? MiniCssExtractPlugin.loader : "style-loader",
+          "css-loader",
+        ],
+      },
+      {
+        test: /\.(png|jpg|gif)$/i,
+        type: "asset/resource",
+      },
+    ],
+  },
+  plugins: [
+    ...(isProduction ? [new MiniCssExtractPlugin()] : []),
+    new webpack.ProvidePlugin({
+      Buffer: [require.resolve("buffer/"), "Buffer"],
+      process: require.resolve("process/browser"),
+    }),
+    new webpack.EnvironmentPlugin({
+      II_FETCH_ROOT_KEY: "0",
+      II_DUMMY_AUTH: "0",
+      II_DUMMY_CAPTCHA: "0",
+    }),
+    new CompressionPlugin({
+      test: /\.js(\?.*)?$/i,
+    }),
+    new webpack.IgnorePlugin(/^\.\/wordlists\/(?!english)/, /bip39\/src$/),
+    new CopyPlugin({
+      patterns: [
+        {
+          from: path.join(__dirname, "src", "frontend", "assets"),
+          to: path.join(__dirname, "dist"),
+          // We want the html file from HtmlWebpackPlugin, not the original one
+          filter: (resourcePath) => {
+            return !resourcePath.endsWith("index.html");
+          },
+        },
+      ],
+    }),
+
+    new HtmlWebpackPlugin({
+      template: "src/frontend/assets/index.html",
+      // Don't inject the index.js in production, because the canister actually injects it (see http.rs for more details)
+      // When true, injects (a hot-reloading version of) the built javascript, which in turn inserts the CSS (through "style-loader").
+      // This value is read by the template; see index.html for more details.
+      inject: !isProduction,
+    }),
+  ],
+};
 
 module.exports = [
   {
-    mode: isProduction ? "production" : "development",
-    name: "app", // TODO: forward this where necessary
+    ...defaults,
+    name: "app",
     entry: {
       index: path.join(__dirname, "src", "frontend", "src", "index"),
-    },
-    devtool,
-    optimization: {
-      minimize: isProduction,
-    },
-    resolve: {
-      extensions: [".js", ".ts"],
-      fallback: {
-        stream: require.resolve("stream-browserify/"),
-      },
-    },
-    output: {
-      filename: "[name].js",
-      path: path.join(__dirname, "dist"),
     },
     devServer: {
       // Set up a proxy that redirects API calls to the replica.
@@ -80,115 +134,22 @@ module.exports = [
       },
       allowedHosts: [".localhost", ".local", ".ngrok.io"],
     },
-
-    module: {
-      rules: [
-        { test: /\.(ts)$/, loader: "ts-loader" },
-        { test: /\.css$/, use: ["style-loader", "css-loader"] },
-        {
-          test: /\.(png|jpg|gif)$/i,
-          type: "asset/resource",
-        },
-      ],
-    },
     plugins: [
-      new CopyPlugin({
-        patterns: [
-          {
-            from: path.join(__dirname, "src", "frontend", "assets"),
-            to: path.join(__dirname, "dist"),
-            // allow HtmlWebpackPlugin to handle serving the index.html file locally
-            // this avoids some Safari issues with the CSP headers served by http.rs
-            filter: isProduction
-              ? undefined
-              : async (resourcePath) => {
-                  return !resourcePath.endsWith("index.html");
-                },
-          },
-        ],
-      }),
-      // allow HtmlWebpackPlugin to handle serving the index.html file locally
-      // this avoids some Safari issues with the CSP headers served by http.rs
-      ...(isProduction
-        ? []
-        : [
-            new HtmlWebpackPlugin({
-              template: "src/frontend/assets/index.html",
-            }),
-            new InjectCanisterIdPlugin(),
-          ]),
-      new webpack.ProvidePlugin({
-        Buffer: [require.resolve("buffer/"), "Buffer"],
-        process: require.resolve("process/browser"),
-      }),
-      new webpack.EnvironmentPlugin({
-        II_FETCH_ROOT_KEY: "0",
-        II_DUMMY_AUTH: "0",
-        II_DUMMY_CAPTCHA: "0",
-      }),
-      new CompressionPlugin({
-        test: /\.js(\?.*)?$/i,
-      }),
-      new webpack.IgnorePlugin(/^\.\/wordlists\/(?!english)/, /bip39\/src$/),
+      ...defaults.plugins,
+      // Inject canister ID when using the dev server, so that the local file can be used
+      // (instead of the HTML served by the canister)
+      ...(isProduction ? [] : [new InjectCanisterIdPlugin()]),
     ],
   },
   {
-    mode: isProduction ? "production" : "development",
+    ...defaults,
     name: "showcase",
     entry: {
       showcase: path.join(__dirname, "src", "frontend", "src", "showcase"),
-    },
-    devtool,
-    resolve: {
-      extensions: [".js", ".ts"],
-      fallback: {
-        stream: require.resolve("stream-browserify/"),
-      },
-    },
-    output: {
-      filename: "[name].js",
-      path: path.join(__dirname, "dist"),
     },
     devServer: {
       port: 8080,
       historyApiFallback: true, // serves the app on all routes, which we use because the app itself does the routing
     },
-    module: {
-      rules: [
-        { test: /\.(ts)$/, loader: "ts-loader" },
-        { test: /\.css$/, use: ["style-loader", "css-loader"] },
-        {
-          test: /\.(png|jpg|gif)$/i,
-          type: "asset/resource",
-        },
-      ],
-    },
-    plugins: [
-      new CopyPlugin({
-        patterns: [
-          {
-            from: path.join(__dirname, "src", "frontend", "assets"),
-            to: path.join(__dirname, "dist"),
-            filter: async (resourcePath) => {
-              return !resourcePath.endsWith("index.html");
-            },
-          },
-        ],
-      }),
-      new HtmlWebpackPlugin(),
-      new webpack.ProvidePlugin({
-        Buffer: [require.resolve("buffer/"), "Buffer"],
-        process: require.resolve("process/browser"),
-      }),
-      new webpack.EnvironmentPlugin({
-        II_FETCH_ROOT_KEY: "0",
-        II_DUMMY_AUTH: "0",
-        II_DUMMY_CAPTCHA: "0",
-      }),
-      new CompressionPlugin({
-        test: /\.js(\?.*)?$/i,
-      }),
-      new webpack.IgnorePlugin(/^\.\/wordlists\/(?!english)/, /bip39\/src$/),
-    ],
   },
 ];
