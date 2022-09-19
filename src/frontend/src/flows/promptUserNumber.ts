@@ -1,5 +1,6 @@
 import { html, render } from "lit-html";
 import { parseUserNumber } from "../utils/userNumber";
+import { userNumberInput } from "../components/userNumber";
 
 const pageContent = (title: string, userNumber: bigint | null) => html`
   <div class="l-container c-card c-card--highlight">
@@ -7,13 +8,7 @@ const pageContent = (title: string, userNumber: bigint | null) => html`
       <h1 class="t-title t-title--main">${title}</h1>
       <p class="t-lead">Please provide an Identity Anchor.</p>
     </hgroup>
-    <input
-      type="text"
-      id="userNumberInput"
-      class="c-input c-input--vip"
-      placeholder="Enter Anchor"
-      value=${userNumber ?? ""}
-    />
+    ${userNumberInput()}
     <div class="c-button-group">
       <button id="userNumberCancel" class="c-button c-button--secondary">
         Cancel
