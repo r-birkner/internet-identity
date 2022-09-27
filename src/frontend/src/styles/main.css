@@ -399,7 +399,7 @@ body {
  */
 
 .t-strong {
-  font-weight: bold;
+  font-weight: 500;
 }
 
 .t-weak {
@@ -408,7 +408,7 @@ body {
 }
 
 .t-title {
-  font-weight: bold;
+  font-weight: 500;
   font-size: 1.8rem;
   line-height: 1.1;
   margin-top: 1em;
