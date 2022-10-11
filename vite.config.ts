@@ -1,12 +1,12 @@
-import {defineConfig, type UserConfig} from "vite";
+import { defineConfig, UserConfig } from "vite";
 import { NodeModulesPolyfillPlugin } from "@esbuild-plugins/node-modules-polyfill";
 import rollupNodePolyFill from "rollup-plugin-node-polyfills";
-import {injectCanisterIdPlugin, stripInjectJsScript} from "./vite.plugins";
+import { injectCanisterIdPlugin, stripInjectJsScript } from "./vite.plugins";
 import { resolve } from "path";
 import type { Plugin } from "rollup";
-import viteCompression from 'vite-plugin-compression';
+import viteCompression from "vite-plugin-compression";
 
-export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
+export const viteDefaultConfig = ({ mode }: UserConfig): UserConfig => ({
   root: "src/frontend",
   envDir: "../../",
   resolve: {
@@ -24,14 +24,14 @@ export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
       output: {
         entryFileNames: `[name].js`,
         chunkFileNames: `[name].js`,
-        assetFileNames: `[name].[ext]`
-      }
+        assetFileNames: `[name].[ext]`,
+      },
     },
   },
   plugins: [
     viteCompression(),
-    [...mode === "development" ? [injectCanisterIdPlugin()] : []],
-    [...mode === "production" ? [stripInjectJsScript()] : []]
+    [...(mode === "development" ? [injectCanisterIdPlugin()] : [])],
+    [...(mode === "production" ? [stripInjectJsScript()] : [])],
   ],
   optimizeDeps: {
     esbuildOptions: {
@@ -41,7 +41,7 @@ export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
       plugins: [NodeModulesPolyfillPlugin()],
     },
   },
-})
+});
 
 // https://vitejs.dev/config/
 export default defineConfig(viteDefaultConfig);
