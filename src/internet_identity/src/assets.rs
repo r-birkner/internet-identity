@@ -24,7 +24,7 @@ pub enum ContentType {
 }
 
 // The <script> tag that loads the 'index.js'
-const INDEX_HTML_SETUP_JS: &str = "let s = document.createElement('script');s.async = true;s.src = 'index.js';document.head.appendChild(s);";
+const INDEX_HTML_SETUP_JS: &str = "let s = document.createElement('script');s.async = true;s.type = 'module';s.src = 'index.js';document.head.appendChild(s);";
 
 lazy_static! {
     // The SRI sha256 hash of the script tag, used by the CSP policy.
