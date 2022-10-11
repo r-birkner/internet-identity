@@ -1,7 +1,7 @@
 import {defineConfig, type UserConfig} from "vite";
 import { NodeModulesPolyfillPlugin } from "@esbuild-plugins/node-modules-polyfill";
 import rollupNodePolyFill from "rollup-plugin-node-polyfills";
-import { injectCanisterIdPlugin } from "./vite.plugins";
+import {injectCanisterIdPlugin, stripInjectJsScript} from "./vite.plugins";
 import { resolve } from "path";
 import type { Plugin } from "rollup";
 import viteCompression from 'vite-plugin-compression';
@@ -30,7 +30,8 @@ export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
   },
   plugins: [
     viteCompression(),
-      [...mode === "development" ? [injectCanisterIdPlugin()] : []]
+    [...mode === "development" ? [injectCanisterIdPlugin()] : []],
+    [...mode === "production" ? [stripInjectJsScript()] : []]
   ],
   optimizeDeps: {
     esbuildOptions: {
