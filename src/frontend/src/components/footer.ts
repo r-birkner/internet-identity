@@ -1,4 +1,5 @@
 import { html } from "lit-html";
+import badgeImgUrl from '$assets/ic-badge.svg';
 
 export const footer = html`<footer class="l-footer">
   <a
@@ -7,6 +8,6 @@ export const footer = html`<footer class="l-footer">
     href="https://internetcomputer.org/"
     rel="noopener noreferrer"
     target="_blank"
-    ><img src="/ic-badge.svg" alt="Built on Crypto | Internet Computer"
+    ><img src=${badgeImgUrl} alt="Built on Crypto | Internet Computer"
   /></a>
 </footer>`;

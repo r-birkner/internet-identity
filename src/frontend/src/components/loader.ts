@@ -1,4 +1,5 @@
 import { html, render } from "lit-html";
+import loaderImgUrl from '$assets/loader.webp';
 
 const loader = () => html`<style>
     #loader {
@@ -22,7 +23,7 @@ const loader = () => html`<style>
     }
   </style>
   <picture id="loader">
-    <img src="/loader.webp" alt="loading" />
+    <img src=${loaderImgUrl} alt="loading" />
   </picture>`;
 
 const startLoader = () => {

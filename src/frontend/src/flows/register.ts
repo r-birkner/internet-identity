@@ -96,7 +96,7 @@ const init = (connection: Connection): Promise<LoginFlowResult | null> =>
        * If "II_DUMMY_AUTH" is set, we create a dummy identity. The same identity must then be used in iiConnection when authenticating.
        */
       const createIdentity =
-        process.env.II_DUMMY_AUTH === "1"
+        import.meta.env.VITE_II_DUMMY_AUTH === "1"
           ? () => Promise.resolve(new DummyIdentity())
           : () =>
               WebAuthnIdentity.create({

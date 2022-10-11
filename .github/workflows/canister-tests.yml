@@ -47,23 +47,23 @@ jobs:
         include:
           # The production build
           - name: internet_identity_production.wasm
-            II_FETCH_ROOT_KEY: 0
-            II_DUMMY_CAPTCHA: 0
-            II_DUMMY_AUTH: 0
+            VITE_II_FETCH_ROOT_KEY: 0
+            VITE_II_DUMMY_CAPTCHA: 0
+            VITE_II_DUMMY_AUTH: 0
 
           # No captcha and fetching the root key, used in (our) tests, backend and
           # selenium.
           - name: internet_identity_test.wasm
-            II_FETCH_ROOT_KEY: 1
-            II_DUMMY_CAPTCHA: 1
-            II_DUMMY_AUTH: 0
+            VITE_II_FETCH_ROOT_KEY: 1
+            VITE_II_DUMMY_CAPTCHA: 1
+            VITE_II_DUMMY_AUTH: 0
 
           # Everything disabled, used by third party developers who only care
           # about the login flow
           - name: internet_identity_dev.wasm
-            II_FETCH_ROOT_KEY: 1
-            II_DUMMY_CAPTCHA: 1
-            II_DUMMY_AUTH: 1
+            VITE_II_FETCH_ROOT_KEY: 1
+            VITE_II_DUMMY_CAPTCHA: 1
+            VITE_II_DUMMY_AUTH: 1
 
     steps:
       - uses: actions/checkout@v2
@@ -77,9 +77,9 @@ jobs:
           context: .
           file: Dockerfile
           build-args: |
-            II_FETCH_ROOT_KEY=${{ matrix.II_FETCH_ROOT_KEY }}
-            II_DUMMY_AUTH=${{ matrix.II_DUMMY_AUTH }}
-            II_DUMMY_CAPTCHA=${{ matrix.II_DUMMY_CAPTCHA }}
+            VITE_II_FETCH_ROOT_KEY=${{ matrix.VITE_II_FETCH_ROOT_KEY }}
+            VITE_II_DUMMY_AUTH=${{ matrix.VITE_II_DUMMY_AUTH }}
+            VITE_II_DUMMY_CAPTCHA=${{ matrix.VITE_II_DUMMY_CAPTCHA }}
           cache-from: type=gha,scope=cached-stage
           # Exports the artefacts from the final stage
           outputs: ./out
