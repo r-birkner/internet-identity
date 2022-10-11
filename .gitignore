@@ -26,3 +26,6 @@ test-failures/
 
 # built canisters
 *.wasm
+
+# ignore showcase prod build
+showcase

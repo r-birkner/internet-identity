@@ -1,27 +1,29 @@
-import { defineConfig } from "vite";
+import {defineConfig, type UserConfig} from "vite";
 import { NodeModulesPolyfillPlugin } from "@esbuild-plugins/node-modules-polyfill";
 import rollupNodePolyFill from "rollup-plugin-node-polyfills";
 import { injectCanisterIdPlugin } from "./vite.plugins";
 import { resolve } from "path";
+import type { Plugin } from "rollup";
 
-// https://vitejs.dev/config/
-export default defineConfig({
+export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
   root: "src/frontend",
   envDir: "../../",
   resolve: {
     alias: {
       $assets: resolve(__dirname, "src/frontend/assets"),
+      $app: resolve(__dirname, "src/frontend/src"),
+      $generated: resolve(__dirname, "src/frontend/generated"),
     },
   },
   build: {
     outDir: "../../dist",
     emptyOutDir: true,
     rollupOptions: {
-      plugins: [rollupNodePolyFill()],
+      plugins: [rollupNodePolyFill() as Plugin],
     },
   },
   plugins:
-    process.env.NODE_ENV === "production" ? [] : [injectCanisterIdPlugin()],
+      mode === "development" ? [injectCanisterIdPlugin()] : [],
   optimizeDeps: {
     esbuildOptions: {
       define: {
@@ -30,4 +32,7 @@ export default defineConfig({
       plugins: [NodeModulesPolyfillPlugin()],
     },
   },
-});
+})
+
+// https://vitejs.dev/config/
+export default defineConfig(viteDefaultConfig);

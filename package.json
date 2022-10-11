@@ -6,12 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "showcase": "vite --config vite.showcase.config.ts --mode showcase",
     "build": "vite build",
-    "start": "VITE_II_FETCH_ROOT_KEY=1 webpack serve --config-name app",
     "generate": "npm run generate:types && npm run generate:js",
     "generate:types": "didc bind ./src/internet_identity/internet_identity.did -t ts > src/frontend/generated/internet_identity_types.d.ts",
     "generate:js": "didc bind ./src/internet_identity/internet_identity.did -t js > src/frontend/generated/internet_identity_idl.js",
-    "showcase": "VITE_II_FETCH_ROOT_KEY=1 webpack serve --config-name showcase",
     "screenshots": "ts-node ./src/frontend/screenshots.ts",
     "test": "jest --maxWorkers 1 --roots ./src/frontend --verbose --testPathIgnorePatterns=\"src/frontend/src/test-e2e\"",
     "test:e2e": "jest --roots ./src/frontend --verbose --testPathPattern=\"src/frontend/src/test-e2e\"",

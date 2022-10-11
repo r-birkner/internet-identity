@@ -1,52 +1,52 @@
 /** A showcase for static pages. II pages are given a fake connection and loaded from here
  * just to give an idea of what they look like, and to speed up the development cycle when
  * working on HTML and CSS. */
-import "./styles/main.css";
+import "$app/styles/main.css";
 import { html, render } from "lit-html";
 import {
   Challenge,
   DeviceData,
   CredentialId,
   Timestamp,
-} from "../generated/internet_identity_types";
+} from "$generated/internet_identity_types";
 import {
   IdentifiableIdentity,
   AuthenticatedConnection,
-} from "./utils/iiConnection";
-import { styleguide } from "./styleguide";
-import { compatibilityNotice } from "./flows/compatibilityNotice";
-import { aboutView } from "./flows/about";
-import { faqView } from "./flows/faq";
-import { showWarning } from "./banner";
-import { displayUserNumber } from "./flows/displayUserNumber";
-import { loginKnownAnchor } from "./flows/login/knownAnchor";
-import { loginUnknownAnchor } from "./flows/login/unknownAnchor";
-import { pickRecoveryDevice } from "./flows/recovery/pickRecoveryDevice";
-import { displaySeedPhrase } from "./flows/recovery/displaySeedPhrase";
-import { phraseRecoveryPage } from "./flows/recovery/recoverWith/phrase";
-import { deviceRecoveryPage } from "./flows/recovery/recoverWith/device";
-import { displayPage } from "./flows/authenticate";
-import { register, renderConstructing } from "./flows/register";
-import { confirmRegister } from "./flows/confirmRegister";
-import { chooseRecoveryMechanism } from "./flows/recovery/chooseRecoveryMechanism";
-import { displaySingleDeviceWarning } from "./flows/recovery/displaySingleDeviceWarning";
-import { displayManage } from "./flows/manage";
-import { chooseDeviceAddFlow } from "./flows/addDevice/manage";
-import { deviceSettings } from "./flows/manage/deviceSettings";
-import { renderPollForTentativeDevicePage } from "./flows/addDevice/manage/pollForTentativeDevice";
-import { addRemoteDevice } from "./flows/addDevice/welcomeView";
+} from "$app/utils/iiConnection";
+import { styleguide } from "$app/styleguide";
+import { compatibilityNotice } from "$app/flows/compatibilityNotice";
+import { aboutView } from "$app/flows/about";
+import { faqView } from "$app/flows/faq";
+import { showWarning } from "$app/banner";
+import { displayUserNumber } from "$app/flows/displayUserNumber";
+import { loginKnownAnchor } from "$app/flows/login/knownAnchor";
+import { loginUnknownAnchor } from "$app/flows/login/unknownAnchor";
+import { pickRecoveryDevice } from "$app/flows/recovery/pickRecoveryDevice";
+import { displaySeedPhrase } from "$app/flows/recovery/displaySeedPhrase";
+import { phraseRecoveryPage } from "$app/flows/recovery/recoverWith/phrase";
+import { deviceRecoveryPage } from "$app/flows/recovery/recoverWith/device";
+import { displayPage } from "$app/flows/authenticate";
+import { register, renderConstructing } from "$app/flows/register";
+import { confirmRegister } from "$app/flows/confirmRegister";
+import { chooseRecoveryMechanism } from "$app/flows/recovery/chooseRecoveryMechanism";
+import { displaySingleDeviceWarning } from "$app/flows/recovery/displaySingleDeviceWarning";
+import { displayManage } from "$app/flows/manage";
+import { chooseDeviceAddFlow } from "$app/flows/addDevice/manage";
+import { deviceSettings } from "$app/flows/manage/deviceSettings";
+import { renderPollForTentativeDevicePage } from "$app/flows/addDevice/manage/pollForTentativeDevice";
+import { addRemoteDevice } from "$app/flows/addDevice/welcomeView";
 import {
   registerTentativeDevice,
   TentativeDeviceInfo,
-} from "./flows/addDevice/welcomeView/registerTentativeDevice";
-import { deviceRegistrationDisabledInfo } from "./flows/addDevice/welcomeView/deviceRegistrationModeDisabled";
-import { showVerificationCode } from "./flows/addDevice/welcomeView/showVerificationCode";
-import { verifyDevice } from "./flows/addDevice/manage/verifyTentativeDevice";
-import { withLoader } from "./components/loader";
-import { displaySafariWarning } from "./flows/recovery/displaySafariWarning";
-import { displayError } from "./components/displayError";
-import { promptUserNumber } from "./flows/promptUserNumber";
-import { registerDisabled } from "./flows/registerDisabled";
+} from "$app/flows/addDevice/welcomeView/registerTentativeDevice";
+import { deviceRegistrationDisabledInfo } from "$app/flows/addDevice/welcomeView/deviceRegistrationModeDisabled";
+import { showVerificationCode } from "$app/flows/addDevice/welcomeView/showVerificationCode";
+import { verifyDevice } from "$app/flows/addDevice/manage/verifyTentativeDevice";
+import { withLoader } from "$app/components/loader";
+import { displaySafariWarning } from "$app/flows/recovery/displaySafariWarning";
+import { displayError } from "$app/components/displayError";
+import { promptUserNumber } from "$app/flows/promptUserNumber";
+import { registerDisabled } from "$app/flows/registerDisabled";
 
 // A "dummy" connection which actually is just undefined, hoping pages won't call it
 const dummyConnection = undefined as unknown as AuthenticatedConnection;

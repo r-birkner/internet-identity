@@ -9,13 +9,34 @@
     "module": "es2020",
     "target": "es2020",
     "moduleResolution": "node",
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": "src/frontend",
+    "paths": {
+      "$app": [
+        "src"
+      ],
+      "$app/*": [
+        "src/*"
+      ],
+      "$assets": [
+        "assets"
+      ],
+      "$assets/*": [
+        "assets/*"
+      ],
+      "$generated": [
+        "generated"
+      ],
+      "$generated/*": [
+        "generated/*"
+      ]
+    }
   },
-  "include": ["src/frontend/src"],
+  "include": ["src"],
   "exclude": [
-    "src/frontend/src/**/test.ts",
-    "src/frontend/src/**/*.test.ts",
-    "src/frontend/src/test-e2e/**/*",
-    "src/frontend/src/generated/**/*"
+    "src/**/test.ts",
+    "src/**/*.test.ts",
+    "src/test-e2e/**/*",
+    "src/generated/**/*"
   ]
 }
