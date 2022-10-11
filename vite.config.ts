@@ -4,6 +4,7 @@ import rollupNodePolyFill from "rollup-plugin-node-polyfills";
 import { injectCanisterIdPlugin } from "./vite.plugins";
 import { resolve } from "path";
 import type { Plugin } from "rollup";
+import viteCompression from 'vite-plugin-compression';
 
 export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
   root: "src/frontend",
@@ -20,10 +21,17 @@ export const viteDefaultConfig = ({mode}: UserConfig): UserConfig => ({
     emptyOutDir: true,
     rollupOptions: {
       plugins: [rollupNodePolyFill() as Plugin],
+      output: {
+        entryFileNames: `[name].js`,
+        chunkFileNames: `[name].js`,
+        assetFileNames: `[name].[ext]`
+      }
     },
   },
-  plugins:
-      mode === "development" ? [injectCanisterIdPlugin()] : [],
+  plugins: [
+    viteCompression(),
+      [...mode === "development" ? [injectCanisterIdPlugin()] : []]
+  ],
   optimizeDeps: {
     esbuildOptions: {
       define: {
