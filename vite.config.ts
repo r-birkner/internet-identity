@@ -9,6 +9,7 @@ import viteCompression from "vite-plugin-compression";
 export const viteDefaultConfig = ({ mode }: UserConfig): UserConfig => ({
   root: "src/frontend",
   envDir: "../../",
+  envPrefix: "II_",
   resolve: {
     alias: {
       $assets: resolve(__dirname, "src/frontend/assets"),

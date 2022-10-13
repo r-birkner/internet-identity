@@ -62,9 +62,9 @@ FROM deps as build
 
 COPY . .
 
-ARG VITE_II_FETCH_ROOT_KEY=
-ARG VITE_II_DUMMY_CAPTCHA=
-ARG VITE_II_DUMMY_AUTH=
+ARG II_FETCH_ROOT_KEY=
+ARG II_DUMMY_CAPTCHA=
+ARG II_DUMMY_AUTH=
 
 RUN touch src/internet_identity/src/lib.rs
 RUN touch src/internet_identity_interface/src/lib.rs

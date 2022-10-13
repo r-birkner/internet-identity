@@ -203,7 +203,7 @@ export class Connection {
      * that is used in the register flow.
      */
     const identity =
-      import.meta.env.VITE_II_DUMMY_AUTH === "1"
+      import.meta.env.II_DUMMY_AUTH === "1"
         ? new DummyIdentity()
         : MultiWebAuthnIdentity.fromCredentials(
             devices.flatMap((device) =>
