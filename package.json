@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "start": "npm run dev",
-    "showcase": "vite --config vite.showcase.config.ts --mode showcase",
+    "showcase": "vite --mode showcase",
     "build": "vite build",
     "generate": "npm run generate:types && npm run generate:js",
     "generate:types": "didc bind ./src/internet_identity/internet_identity.did -t ts > src/frontend/generated/internet_identity_types.d.ts",

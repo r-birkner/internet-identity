@@ -6,8 +6,7 @@ import { resolve } from "path";
 import type { Plugin } from "rollup";
 import viteCompression from "vite-plugin-compression";
 
-export const viteDefaultConfig = ({ mode }: UserConfig): UserConfig => ({
-  root: "src/frontend",
+const defaultConfig = (mode?: string): Omit<UserConfig, "root"> => ({
   envDir: "../../",
   envPrefix: "II_",
   resolve: {
@@ -43,9 +42,28 @@ export const viteDefaultConfig = ({ mode }: UserConfig): UserConfig => ({
     },
   },
   server: {
-    port: 8080
-  }
+    port: 8080,
+  },
 });
 
 // https://vitejs.dev/config/
-export default defineConfig(viteDefaultConfig);
+export default defineConfig(({ mode }: UserConfig): UserConfig => {
+  const { build, ...rest } = defaultConfig(mode);
+
+  if (mode === "showcase") {
+    return {
+      ...rest,
+      root: "src/showcase",
+      build: {
+        ...build,
+        outDir: "../../showcase",
+      },
+    };
+  }
+
+  return {
+    ...rest,
+    root: "src/frontend",
+    build,
+  };
+});
