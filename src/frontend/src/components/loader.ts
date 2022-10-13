@@ -1,5 +1,5 @@
 import { html, render } from "lit-html";
-import loaderImgUrl from '$assets/loader.webp';
+import loaderImgUrl from "$assets/loader.webp";
 
 const loader = () => html`<style>
     #loader {

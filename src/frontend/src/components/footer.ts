@@ -1,5 +1,5 @@
 import { html } from "lit-html";
-import badgeImgUrl from '$assets/ic-badge.svg';
+import badgeImgUrl from "$assets/ic-badge.svg";
 
 export const footer = html`<footer class="l-footer">
   <a
