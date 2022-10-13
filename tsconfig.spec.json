@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "types": ["node", "jest", "webdriverio/async", "@trust/webcrypto"]
+  },
+  "include": [
+    "src",
+    "src/frontend/test-setup.ts",
+    "src/**/test.ts",
+    "src/**/*.test.ts",
+    "src/test-e2e/**/*",
+    "src/generated/**/*"
+  ],
+  "exclude": []
+}

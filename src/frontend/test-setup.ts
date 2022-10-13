@@ -1,5 +1,5 @@
 import crypto from "@trust/webcrypto";
-import textEncoding = require("text-encoding");
+import { TextDecoder, TextEncoder } from "util";
 
 export type WebAuthnCredential = {
   credentialId: string;
@@ -37,4 +37,6 @@ declare global {
 }
 
 global.crypto = crypto;
-global.TextEncoder = textEncoding.TextEncoder;
+
+global.TextEncoder = TextEncoder;
+(global as { TextDecoder: typeof TextDecoder }).TextDecoder = TextDecoder;
