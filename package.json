@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "npm run dev",
     "showcase": "vite --config vite.showcase.config.ts --mode showcase",
     "build": "vite build",
     "generate": "npm run generate:types && npm run generate:js",
