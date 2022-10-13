@@ -3,6 +3,7 @@
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "types": ["node", "jest", "webdriverio/async", "@trust/webcrypto"]
   },
   "include": [
