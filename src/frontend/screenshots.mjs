@@ -1,6 +1,5 @@
 import { remote } from "webdriverio";
 import { existsSync, mkdirSync } from "fs";
-import { ChromeOptions } from "@wdio/types/build/Capabilities";
 
 /** This executable takes screenshots of every page in the showcase.
  * This function expects the showcase to be running on 'http://localhost:8080'. Everything
@@ -10,7 +9,7 @@ async function main() {
 }
 
 /** Open each showcase page one after the other and screenshot it */
-async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
+async function takeShowcaseScreenshots(browser) {
   await visit(browser, "http://localhost:8080/");
 
   // The landing page has a link for every page. The link tags have `data-page-name`
@@ -50,13 +49,11 @@ async function takeShowcaseScreenshots(browser: WebdriverIO.Browser) {
 }
 
 /** Create a chrome instance and run callback, deleting session afterwards */
-async function withChrome<T>(
-  cb: (browser: WebdriverIO.Browser) => T
-): Promise<T> {
+async function withChrome(cb) {
   // Screenshot image dimension, if specified
   const { mobileEmulation } = readScreenshotsConfig();
 
-  const chromeOptions: ChromeOptions = {
+  const chromeOptions = {
     args: ["headless", "disable-gpu"],
     mobileEmulation,
   };
@@ -74,7 +71,7 @@ async function withChrome<T>(
 }
 
 /** Visit page and wait until loaded */
-async function visit(browser: WebdriverIO.Browser, url: string) {
+async function visit(browser, url) {
   await browser.url(url);
 
   /* Disable transitions to make sure we screenshot the (final) actual state */
@@ -112,11 +109,7 @@ async function visit(browser: WebdriverIO.Browser, url: string) {
  * (otherwise just use 'deviceName'):
  * * https://github.com/webdriverio/webdriverio/issues/8903
  */
-function readScreenshotsConfig(): {
-  mobileEmulation?: {
-    deviceName: string;
-  };
-} {
+function readScreenshotsConfig() {
   const screenshotsType = process.env["SCREENSHOTS_TYPE"];
   switch (screenshotsType) {
     case "mobile":
