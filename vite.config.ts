@@ -42,6 +42,9 @@ export const viteDefaultConfig = ({ mode }: UserConfig): UserConfig => ({
       plugins: [NodeModulesPolyfillPlugin()],
     },
   },
+  server: {
+    port: 8080
+  }
 });
 
 // https://vitejs.dev/config/
