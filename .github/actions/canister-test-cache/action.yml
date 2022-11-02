@@ -31,7 +31,9 @@ runs:
 
     # Rustup only installs cargo on the first call, so we use a dedicated step to get a good idea of how
     # time is spent in each step separately
-    - run: cargo check --help
+    - name: Prepare cargo using rustup
+      shell: bash
+      run: cargo check --help
 
     - name: Create dummy assets
       shell: bash
@@ -45,7 +47,7 @@ runs:
         touch dist/ic-badge.svg
 
     # Caching ~/.cargo
-    # 
+    #
     # At every step (cargo cache, deps, etc) we store the cache content to a temporary
     # directory so that the cache is kept as it was right after the layer build until
     # the actions/cache post step is run (which only then uploads the cache)
@@ -61,6 +63,7 @@ runs:
 
     - name: Cargo cache (recovery)
       if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
+      shell: bash
       run: |
         rsync -av "/tmp/dot-cargo/" "$HOME/.cargo/"
         find "$HOME/.cargo/" -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
@@ -108,7 +111,9 @@ runs:
         path: /tmp/target-canister
         key: ${{ runner.os }}-${{ steps.git_info.outputs.commit_canister }}-canister
 
-    - run: git checkout ${{ steps.git_info.outputs.commit_canister }}
+    - name: Checkout last canister change
+      shell: bash
+      run: git checkout ${{ steps.git_info.outputs.commit_canister }}
 
     - name: Canister code (recover)
       if: steps.cache-canister.outputs.cache-hit == 'true'
