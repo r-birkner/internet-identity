@@ -185,15 +185,32 @@ jobs:
   # The Rust canister tests #
   ###########################
 
-  # Run the tests, user the output of the docker build as Wasm module
-  # (note: this runs _all_ cargo tests)
-  canister-tests:
+  # Prepares the caches for the later canister tests in parallel with the docker build steps.
+  prepare-canister-tests:
     runs-on: ${{ matrix.os }}
-    needs: [docker-build-ii, docker-build-archive]
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
     steps:
+      - uses: actions/checkout@v3
+        with:
+          # Pull a deep copy so that we can set meaningful timestamps across builds, based on the commit history
+          fetch-depth: '0'
+      - uses: ./.github/actions/canister-test-cache
+
+  # Run the tests, user the output of the docker build as Wasm module
+  # (note: this runs _all_ cargo tests)
+  canister-tests:
+    runs-on: ${{ matrix.os }}
+    needs: [prepare-canister-tests, docker-build-ii, docker-build-archive]
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # Pull a deep copy so that we can set meaningful timestamps across builds, based on the commit history
+          fetch-depth: '0'
       - uses: ./.github/actions/canister-test-cache
       # Build the tests
       - name: Build

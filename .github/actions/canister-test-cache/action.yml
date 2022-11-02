@@ -3,11 +3,6 @@ description: Provides a layered build cache for canister tests
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v3
-      with:
-        # Pull a deep copy so that we can set meaningful timestamps across builds, based on the commit history
-        fetch-depth: '0'
-
     # Figure out which commit modified what. Each commit defined here is used as a cache layer.
     # We use those commit shas as cache keys. Since cargo uses timestamp-based comparison,
     # each cache layer is retrieved and timestamped when the particular commit is checked out,
