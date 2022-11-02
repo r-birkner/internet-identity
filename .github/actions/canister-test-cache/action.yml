@@ -10,6 +10,7 @@ runs:
     # update the mtime of newer files)
     - name: Retrieve commit information
       id: git_info
+      shell: bash
       run: |
         # Last time dependencies or toolchain were updated; used for ~/.cargo and dependencies
         commit_deps=$(git log -1 --pretty=format:%H -- Cargo.* src/*/Cargo.toml rust-toolchain.toml)
@@ -33,6 +34,7 @@ runs:
     - run: cargo check --help
 
     - name: Create dummy assets
+      shell: bash
       run: |
         mkdir dist
         touch dist/index.html
@@ -53,7 +55,9 @@ runs:
         path: /tmp/dot-cargo
         key: ${{ runner.os }}-${{ steps.git_info.outputs.commit_deps }}-dot-cargo
 
-    - run: git checkout ${{ steps.git_info.outputs.commit_deps }}
+    - name: Checkout last dependency change
+      shell: bash
+      run: git checkout ${{ steps.git_info.outputs.commit_deps }}
 
     - name: Cargo cache (recovery)
       if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
@@ -62,9 +66,11 @@ runs:
         find "$HOME/.cargo/" -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
 
     - name: Cargo cache (build)
+      shell: bash
       run: cargo fetch --locked
 
     - name: Cargo cache (save to cache)
+      shell: bash
       if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
       run: rsync -av "$HOME/.cargo/" "/tmp/dot-cargo/"
 
@@ -78,6 +84,7 @@ runs:
 
     - name: Dependencies (recovery)
       if: steps.cache-deps.outputs.cache-hit == 'true'
+      shell: bash
       run: |
         rsync -av "/tmp/target-deps/" "$PWD/target/"
         mtime=$(date +%Y%m%d%H%M.%S)
@@ -87,10 +94,12 @@ runs:
         find "/tmp/target-deps/" -exec touch -t "$mtime" {} +
 
     - name: Dependencies (build)
+      shell: bash
       run: cargo build --tests --release --frozen
 
     - name: Dependencies (save to cache)
       if: steps.cache-deps.outputs.cache-hit != 'true'
+      shell: bash
       run: rsync -av "$PWD/target/" "/tmp/target-deps/"
 
     # Caching canister code and tests
@@ -105,16 +114,19 @@ runs:
 
     - name: Canister code (recover)
       if: steps.cache-canister.outputs.cache-hit == 'true'
+      shell: bash
       run: |
         # Set timestamps so that --compare-dest below knows what (not) to save
         find /tmp/target-canister -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
         rsync -av /tmp/target-canister/ "$PWD/target/"
 
     - name: Canister code (build)
+      shell: bash
       run: cargo build --tests --release --frozen
 
     - name: Canister code (save to cache)
       if: steps.cache-canister.outputs.cache-hit != 'true'
+      shell: bash
       # Here we only store what's been built since the dependency cache restore. Saving the whole
       # ./target again would take another ~800MB (compressed) whereas the diff only takes ~20MB.
       run: rsync -av --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
