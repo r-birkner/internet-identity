@@ -45,7 +45,7 @@ runs:
         touch dist/ic-badge.svg
 
     # Caching ~/.cargo
-
+    # 
     # At every step (cargo cache, deps, etc) we store the cache content to a temporary
     # directory so that the cache is kept as it was right after the layer build until
     # the actions/cache post step is run (which only then uploads the cache)
@@ -75,7 +75,6 @@ runs:
       run: rsync -av "$HOME/.cargo/" "/tmp/dot-cargo/"
 
     # Caching external dependencies
-
     - uses: actions/cache@v3
       id: cache-deps
       with:
@@ -103,7 +102,6 @@ runs:
       run: rsync -av "$PWD/target/" "/tmp/target-deps/"
 
     # Caching canister code and tests
-
     - uses: actions/cache@v3
       id: cache-canister
       with:
