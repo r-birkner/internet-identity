@@ -133,3 +133,7 @@ runs:
       # Here we only store what's been built since the dependency cache restore. Saving the whole
       # ./target again would take another ~800MB (compressed) whereas the diff only takes ~20MB.
       run: rsync -a --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
+
+    - name: Checkout current commit
+      shell: bash
+      run: git checkout ${{ steps.git_info.outputs.commit_now }}

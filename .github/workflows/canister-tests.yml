@@ -213,9 +213,8 @@ jobs:
           fetch-depth: '0'
       - uses: ./.github/actions/canister-test-cache
       # Build the tests
-      - name: Build
+      - name: Build Tests
         run: |
-          git checkout ${{ steps.git_info.outputs.commit_now }}
           cargo build --tests --release --frozen
 
       - name: 'Download II wasm'
