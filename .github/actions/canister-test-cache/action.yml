@@ -65,7 +65,7 @@ runs:
       if: steps.cache-dot-cargo.outputs.cache-hit == 'true'
       shell: bash
       run: |
-        rsync -av "/tmp/dot-cargo/" "$HOME/.cargo/"
+        rsync -a "/tmp/dot-cargo/" "$HOME/.cargo/"
         find "$HOME/.cargo/" -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
 
     - name: Cargo cache (build)
@@ -75,7 +75,7 @@ runs:
     - name: Cargo cache (save to cache)
       shell: bash
       if: steps.cache-dot-cargo.outputs.cache-hit != 'true'
-      run: rsync -av "$HOME/.cargo/" "/tmp/dot-cargo/"
+      run: rsync -a "$HOME/.cargo/" "/tmp/dot-cargo/"
 
     # Caching external dependencies
     - uses: actions/cache@v3
@@ -88,7 +88,7 @@ runs:
       if: steps.cache-deps.outputs.cache-hit == 'true'
       shell: bash
       run: |
-        rsync -av "/tmp/target-deps/" "$PWD/target/"
+        rsync -a "/tmp/target-deps/" "$PWD/target/"
         mtime=$(date +%Y%m%d%H%M.%S)
         find ./target -exec touch -t "$mtime" {} +
         # Here we touch the cache itself so that when diffing (with --compare-dest)
@@ -102,7 +102,7 @@ runs:
     - name: Dependencies (save to cache)
       if: steps.cache-deps.outputs.cache-hit != 'true'
       shell: bash
-      run: rsync -av "$PWD/target/" "/tmp/target-deps/"
+      run: rsync -a "$PWD/target/" "/tmp/target-deps/"
 
     # Caching canister code and tests
     - uses: actions/cache@v3
@@ -121,7 +121,7 @@ runs:
       run: |
         # Set timestamps so that --compare-dest below knows what (not) to save
         find /tmp/target-canister -exec touch -t "$(date +%Y%m%d%H%M.%S)" {} +
-        rsync -av /tmp/target-canister/ "$PWD/target/"
+        rsync -a /tmp/target-canister/ "$PWD/target/"
 
     - name: Canister code (build)
       shell: bash
@@ -132,4 +132,4 @@ runs:
       shell: bash
       # Here we only store what's been built since the dependency cache restore. Saving the whole
       # ./target again would take another ~800MB (compressed) whereas the diff only takes ~20MB.
-      run: rsync -av --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
+      run: rsync -a --compare-dest="/tmp/target-deps/" "$PWD/target/" "/tmp/target-canister/"
