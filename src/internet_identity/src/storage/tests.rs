@@ -1,6 +1,6 @@
 use crate::archive::{ArchiveData, ArchiveInfo, ArchiveState};
 use crate::state::{DeviceDataInternal, PersistentState};
-use crate::storage::{Header, PersistentStateError, StorageError};
+use crate::storage::{HeaderV1, PersistentStateError, StorageError};
 use crate::Storage;
 use candid::Principal;
 use ic_stable_structures::{Memory, VectorMemory};
@@ -14,7 +14,7 @@ const PERSISTENT_STATE_MAGIC: [u8; 4] = *b"IIPS";
 #[test]
 fn should_match_actual_header_size() {
     // if this test fails, make sure the change was intentional and upgrade as well as rollback still work!
-    assert_eq!(std::mem::size_of::<Header>(), HEADER_SIZE);
+    assert_eq!(std::mem::size_of::<HeaderV1>(), HEADER_SIZE);
 }
 
 #[test]

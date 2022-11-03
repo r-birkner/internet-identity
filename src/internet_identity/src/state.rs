@@ -1,6 +1,6 @@
 use crate::archive::{ArchiveData, ArchiveInfo, ArchiveState, ArchiveStatusCache};
-use crate::storage::DEFAULT_RANGE_SIZE;
-use crate::{PersistentStateError, Salt, Storage};
+use crate::storage::{PersistentStateError, DEFAULT_RANGE_SIZE_V1};
+use crate::{Salt, Storage};
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::api::management_canister::main::CanisterStatusResponse;
 use ic_cdk::api::time;
@@ -146,7 +146,7 @@ impl Default for State {
             storage: RefCell::new(Storage::new(
                 (
                     FIRST_USER_ID,
-                    FIRST_USER_ID.saturating_add(DEFAULT_RANGE_SIZE),
+                    FIRST_USER_ID.saturating_add(DEFAULT_RANGE_SIZE_V1),
                 ),
                 DefaultMemoryImpl::default(),
             )),

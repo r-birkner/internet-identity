@@ -72,40 +72,89 @@ use std::marker::PhantomData;
 mod tests;
 
 /// Reserved space for the header before the anchor records start.
-const RESERVED_HEADER_BYTES: u64 = 512;
-const DEFAULT_ENTRY_SIZE: u16 = 2048;
+const WASM_PAGE_SIZE: u64 = 65_536;
+
+const RESERVED_HEADER_BYTES_V1: u64 = 512;
+const RESERVED_HEADER_BYTES_V3: u64 = 2 * WASM_PAGE_SIZE; // 1 page reserved for II config, 1 for memory manager
+
+const DEFAULT_ENTRY_SIZE_V1: u16 = 2048;
+const DEFAULT_ENTRY_SIZE_V3: u16 = 4096;
+
 const EMPTY_SALT: [u8; 32] = [0; 32];
 const GB: u64 = 1 << 30;
-const STABLE_MEMORY_SIZE: u64 = 8 * GB;
+
+const STABLE_MEMORY_SIZE_V1: u64 = 8 * GB;
+const STABLE_MEMORY_SIZE_V3: u64 = 32 * GB; // II should only use the full 32 GB once migration is complete
 /// We reserve last ~10% of the stable memory for later new features.
-const STABLE_MEMORY_RESERVE: u64 = STABLE_MEMORY_SIZE / 10;
+const STABLE_MEMORY_RESERVE: u64 = STABLE_MEMORY_SIZE_V1 / 10;
 
 const PERSISTENT_STATE_MAGIC: [u8; 4] = *b"IIPS"; // II Persistent State
 
 /// The maximum number of users this canister can store.
-pub const DEFAULT_RANGE_SIZE: u64 =
-    (STABLE_MEMORY_SIZE - RESERVED_HEADER_BYTES - STABLE_MEMORY_RESERVE)
-        / DEFAULT_ENTRY_SIZE as u64;
+pub const DEFAULT_RANGE_SIZE_V1: u64 =
+    (STABLE_MEMORY_SIZE_V1 - RESERVED_HEADER_BYTES_V1 - STABLE_MEMORY_RESERVE)
+        / DEFAULT_ENTRY_SIZE_V1 as u64;
 
 pub type Salt = [u8; 32];
 
+pub enum MigrationState {
+    NotStarted,
+    InProgress,
+    Finished,
+}
+
 /// Data type responsible for managing user data in stable memory.
 pub struct Storage<T, M> {
-    header: Header,
+    header: HeaderV1,
     memory: M,
     _marker: PhantomData<T>,
 }
 
 #[repr(packed)]
-struct Header {
+struct HeaderV1 {
     magic: [u8; 3],
-    version: u8,
+    version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
     num_users: u32,
     id_range_lo: u64,
     id_range_hi: u64,
     entry_size: u16,
     salt: [u8; 32],
 }
+
+#[repr(packed)]
+struct HeaderV2 {
+    magic: [u8; 3],
+    version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
+    num_users: u32,
+    id_range_lo: u64,
+    id_range_hi: u64,
+    entry_size: u16,
+    salt: [u8; 32],
+    migration_next_record: u64, // all records > this value have already been migrated to the new layout
+    migration_batch_size: u32,  // batch size for incremental anchor migration
+}
+
+#[repr(packed)]
+struct HeaderV3 {
+    magic: [u8; 3],
+    version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
+    num_users: u32,
+    id_range_lo: u64,
+    id_range_hi: u64,
+    entry_size: u16,
+    salt: [u8; 32],
+}
+
+struct Anchor {
+    devices: Vec<Device>,
+}
+
+enum Device {
+    RecoveryPhrase,
+    WebAuthnDevice,
+}
+
+struct RecoveryPhrase {}
 
 impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, M> {
     /// Creates a new empty storage that manages the data of users in
@@ -118,21 +167,21 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
             ));
         }
 
-        if (id_range_hi - id_range_lo) > DEFAULT_RANGE_SIZE {
+        if (id_range_hi - id_range_lo) > DEFAULT_RANGE_SIZE_V1 {
             trap(&format!(
                 "id range [{}, {}) is too large for a single canister (max {} entries)",
-                id_range_lo, id_range_hi, DEFAULT_RANGE_SIZE,
+                id_range_lo, id_range_hi, DEFAULT_RANGE_SIZE_V1,
             ));
         }
 
         Self {
-            header: Header {
+            header: HeaderV1 {
                 magic: *b"IIC",
                 version: 1,
                 num_users: 0,
                 id_range_lo,
                 id_range_hi,
-                entry_size: DEFAULT_ENTRY_SIZE,
+                entry_size: DEFAULT_ENTRY_SIZE_V1,
                 salt: EMPTY_SALT,
             },
             memory,
@@ -156,6 +205,15 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
         self.flush();
     }
 
+    pub fn migration_state(&self) -> MigrationState {
+        match self.header.version {
+            1 => MigrationState::NotStarted,
+            2 => MigrationState::InProgress,
+            3 => MigrationState::Finished,
+            _ => trap("unsupported header version"),
+        }
+    }
+
     /// Initializes storage by reading the given memory.
     ///
     /// Returns None if the memory is empty.
@@ -167,12 +225,12 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
             return None;
         }
 
-        let mut header: Header = unsafe { std::mem::zeroed() };
+        let mut header: HeaderV1 = unsafe { std::mem::zeroed() };
 
         unsafe {
             let slice = std::slice::from_raw_parts_mut(
                 &mut header as *mut _ as *mut u8,
-                std::mem::size_of::<Header>(),
+                std::mem::size_of::<HeaderV1>(),
             );
             memory.read(0, slice);
         }
@@ -212,8 +270,35 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
     pub fn write(&mut self, user_number: UserNumber, data: T) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
 
+        self.write_v1(data, record_number)
+    }
+
+    fn write_v1(&mut self, data: T, record_number: u32) -> Result<(), StorageError> {
         let stable_offset =
-            RESERVED_HEADER_BYTES + record_number as u64 * self.header.entry_size as u64;
+            RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
+        let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
+
+        if buf.len() > self.value_size_limit() {
+            return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
+        }
+
+        // use buffered writer to minimize expensive stable memory operations
+        let mut writer = BufferedWriter::new(
+            self.header.entry_size as usize,
+            Writer::new(&mut self.memory, stable_offset),
+        );
+        writer
+            .write(&(buf.len() as u16).to_le_bytes())
+            .expect("memory write failed");
+        writer.write(&buf).expect("memory write failed");
+        writer.flush().expect("memory write failed");
+        Ok(())
+    }
+
+    /// todo: new candid layout
+    fn write_v3(&mut self, data: T, record_number: u32) -> Result<(), StorageError> {
+        let stable_offset =
+            RESERVED_HEADER_BYTES_V3 + record_number as u64 * DEFAULT_ENTRY_SIZE_V3 as u64;
         let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
 
         if buf.len() > self.value_size_limit() {
@@ -237,7 +322,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
     pub fn read(&self, user_number: UserNumber) -> Result<T, StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
         let stable_offset =
-            RESERVED_HEADER_BYTES + record_number as u64 * self.header.entry_size as u64;
+            RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
 
         // the reader will check stable memory bounds
         // use buffered reader to minimize expensive stable memory operations
@@ -275,7 +360,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
         let slice = unsafe {
             std::slice::from_raw_parts(
                 &self.header as *const _ as *const u8,
-                std::mem::size_of::<Header>(),
+                std::mem::size_of::<HeaderV1>(),
             )
         };
         let mut writer = Writer::new(&mut self.memory, 0);
@@ -290,7 +375,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
 
     /// Returns the maximum number of entries that this storage can fit.
     pub fn max_entries(&self) -> usize {
-        ((STABLE_MEMORY_SIZE - RESERVED_HEADER_BYTES - STABLE_MEMORY_RESERVE)
+        ((STABLE_MEMORY_SIZE_V1 - RESERVED_HEADER_BYTES_V1 - STABLE_MEMORY_RESERVE)
             / self.header.entry_size as u64) as usize
     }
 
@@ -342,7 +427,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
     /// reserve at the end of stable memory.
     fn unused_memory_start(&self) -> u64 {
         let record_number = self.header.num_users as u64;
-        RESERVED_HEADER_BYTES + record_number * self.header.entry_size as u64
+        RESERVED_HEADER_BYTES_V1 + record_number * self.header.entry_size as u64
     }
 
     /// Writes the persistent state to stable memory just outside of the space allocated to the highest user number.
