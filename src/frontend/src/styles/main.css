@@ -940,15 +940,18 @@ a:hover,
   }
   3% {
     color: #fff;
+    text-shadow: 0 0 1em #fff;
   }
   5%,
   45% {
     color: var(--rc-text);
     opacity: 1;
     transform: translateY(0) scaleY(1);
+    text-shadow: 0 0 0 #fff;
   }
   47% {
     color: #fff;
+    text-shadow: 0 0 1em #fff;
   }
   50%,
   100% {
