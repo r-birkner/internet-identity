@@ -869,8 +869,84 @@ a:hover,
  */
 
 .l-footer {
-  padding: var(--rs-footer-gutter);
-  margin-top: var(--rs-footer-stack);
+  padding-top: var(--rs-footer-stack);
+}
+
+.c-footer {
+  position: relative;
+  font-size: 0.8em;
+}
+
+.c-footer::before {
+  /* 1 */
+  content: "";
+  display: block;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  opacity: 0.3;
+  top: 0;
+  background: radial-gradient(var(--vc-shadow), transparent, transparent);
+  background-size: 140% 140%;
+  background-repeat: no-repeat;
+  background-position: center 200%;
+  pointer-events: none;
+}
+
+.c-signature {
+  display: flex;
+  text-decoration: none;
+  align-items: center;
+  gap: var(--vs-inline);
+}
+
+.c-signature svg {
+  width: 2em;
+  height: 2em;
+  margin-left: var(--rs-signature-bezel);
+}
+
+.c-signature__text {
+  position: relative;
+  flex: 1 0 auto;
+}
+
+.c-signature__part {
+  white-space: nowrap;
+}
+
+.c-signature__part--second {
+  position: absolute;
+  right: 0;
+}
+
+.c-signature__part i {
+  position: relative;
+  display: inline-block;
+  animation: revealAndHideLetter 10s ease-in-out forwards infinite;
+  animation-delay: calc(var(--i) * 0.5s);
+}
+
+.c-signature__part--second i {
+  opacity: 0;
+  animation-delay: calc(var(--i) * 0.5s + 5s);
+}
+
+@keyframes revealAndHideLetter {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0.5);
+  }
+  5%,
+  45% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+  50%,
+  100% {
+    opacity: 0;
+    transform: translateY(50%) scaleY(0.5);
+  }
 }
 
 /**
@@ -919,27 +995,12 @@ a:hover,
   transform: translate(-50%, -50%);
 }
 
-.page-signature {
-  display: block;
-  padding: var(--rs-footer-gutter);
-  transition: background 0.2s;
-}
-
-.page-signature img {
-  display: block;
-  max-width: 100%;
-}
-
-.page-signature:hover,
-.page-signature:focus {
-  background: var(--grey-050);
-}
-
 .c-list--flex {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
 }
 
 .c-list--flex li {
