@@ -921,15 +921,16 @@ a:hover,
 }
 
 .c-signature__part i {
+  opacity: 1;
   position: relative;
   display: inline-block;
-  animation: revealAndHideLetter 10s ease-in-out forwards infinite;
-  animation-delay: calc(var(--i) * 0.5s);
+  animation: revealAndHideLetter 20s ease-in-out forwards infinite;
+  animation-delay: calc(var(--i) * 1.2s);
 }
 
 .c-signature__part--second i {
   opacity: 0;
-  animation-delay: calc(var(--i) * 0.5s + 5s);
+  animation-delay: calc(var(--i) * 1.2s + 9.2s);
 }
 
 @keyframes revealAndHideLetter {
