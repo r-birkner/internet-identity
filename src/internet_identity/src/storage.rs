@@ -305,8 +305,9 @@ impl<M: Memory> Storage<M> {
             }
             3 => {
                 // check that the header contains what we expect
-                assert_eq!(header.new_layout_start, 0);
-                assert_eq!(header.entry_size, DEFAULT_ENTRY_SIZE_V3)
+                // unaligned values wrapped with {}, see: https://github.com/rust-lang/rust/issues/82523
+                assert_eq!({ header.new_layout_start }, 0);
+                assert_eq!({ header.entry_size }, DEFAULT_ENTRY_SIZE_V3)
             }
             _ => trap(&format!("unsupported header version: {}", header.version)),
         }
