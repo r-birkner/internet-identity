@@ -56,7 +56,7 @@
 //! without the risk of running out of space (which might easily happen if the RESERVED_HEADER_BYTES
 //! were used instead).
 
-use crate::state::PersistentState;
+use crate::state::{DeviceDataInternal, PersistentState};
 use candid;
 use ic_cdk::api::trap;
 use ic_stable_structures::reader::{BufferedReader, OutOfBounds, Reader};
@@ -154,6 +154,18 @@ struct Anchor {
 enum Device {
     RecoveryPhrase(RecoveryPhrase),
     WebAuthnDevice,
+}
+
+impl From<DeviceDataInternal> for Device {
+    fn from(internal_device: DeviceDataInternal) -> Self {
+        match internal_device.key_type {
+            None => {
+                trap("we don't have any such devices, do we??");
+            }
+            Some(_) => {}
+        };
+        todo!()
+    }
 }
 
 struct RecoveryPhrase {
