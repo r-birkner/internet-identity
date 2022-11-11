@@ -1,3 +1,5 @@
+extern crate core;
+
 use crate::anchor_management::tentative_device_registration;
 use crate::assets::init_assets;
 use candid::Principal;

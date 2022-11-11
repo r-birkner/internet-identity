@@ -341,7 +341,12 @@ impl<M: Memory> Storage<M> {
     ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
 
-        let (offset, buf) = self.entry_v1(data, record_number)?;
+        let (offset, buf) = if record_number < self.header.new_layout_start {
+            self.entry_v1(data, record_number)?
+        } else {
+            self.entry_v3(data, record_number)?
+        };
+
         self.write_anchor_bytes(offset, &buf);
         Ok(())
     }
