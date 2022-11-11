@@ -58,6 +58,7 @@
 
 use crate::state::{DeviceDataInternal, PersistentState};
 use candid;
+use candid::{CandidType, Deserialize};
 use ic_cdk::api::trap;
 use ic_stable_structures::reader::{BufferedReader, OutOfBounds, Reader};
 use ic_stable_structures::writer::{BufferedWriter, Writer};
@@ -68,7 +69,6 @@ use internet_identity_interface::{
 use std::convert::TryInto;
 use std::fmt;
 use std::io::{Read, Write};
-use std::marker::PhantomData;
 
 #[cfg(test)]
 mod tests;
@@ -107,7 +107,7 @@ pub enum MigrationState {
 
 /// Data type responsible for managing user data in stable memory.
 pub struct Storage<M> {
-    header: HeaderV1,
+    header: Header,
     memory: M,
 }
 
@@ -120,15 +120,17 @@ struct Header {
     id_range_hi: u64,
     entry_size: u16,
     salt: [u8; 32],
-    entry_size_new: u16,        // post-migration entry size
-    migration_next_record: u32, // all records < this value are still in the old layout
-    migration_batch_size: u32,  // batch size for incremental anchor migration
+    entry_size_new: u16,       // post-migration entry size
+    new_layout_start: u32,     // all records < this value are still in the old layout
+    migration_batch_size: u32, // batch size for incremental anchor migration
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct Anchor {
     devices: Vec<Device>,
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 enum Device {
     RecoveryPhrase(RecoveryPhrase),
     WebAuthnDevice(WebAuthnDevice),
@@ -157,11 +159,13 @@ impl From<DeviceDataInternal> for Device {
     }
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct RecoveryPhrase {
     pubkey: DeviceKey,
     protection: DeviceProtection,
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct WebAuthnDevice {
     pubkey: DeviceKey,
     alias: String,
@@ -171,11 +175,13 @@ struct WebAuthnDevice {
     domain: Domain,
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 enum Domain {
     Ic0App,    // https://identity.ic0.app
     NewDomain, // ??
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 enum WebAuthnKeyType {
     Unknown,
     Platform,
@@ -221,8 +227,8 @@ impl<M: Memory> Storage<M> {
                 entry_size: DEFAULT_ENTRY_SIZE_V3,
                 salt: EMPTY_SALT,
                 entry_size_new: DEFAULT_ENTRY_SIZE_V3,
-                migration_next_record: 0, // if this is 0, the migration is finished
-                migration_batch_size: 0,  // nothing to do
+                new_layout_start: 0, // if this is 0, the migration is finished
+                migration_batch_size: 0, // nothing to do
             },
             memory,
         }
@@ -286,20 +292,20 @@ impl<M: Memory> Storage<M> {
                 header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
                 header.migration_batch_size = 100;
                 // the next user will start using the new layout
-                header.migration_next_record = header.num_users + 1
+                header.new_layout_start = header.num_users + 1
             }
             2 => {
                 // check if migration is actually done already
-                if header.migration_next_record == 0 {
+                if header.new_layout_start == 0 {
                     header.version = 3;
                     header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
                     header.migration_batch_size = 0;
-                    header.migration_next_record = 0
+                    header.new_layout_start = 0
                 }
             }
             3 => {
                 // check that the header contains what we expect
-                assert_eq!(header.migration_next_record, 0);
+                assert_eq!(header.new_layout_start, 0);
                 assert_eq!(header.entry_size, DEFAULT_ENTRY_SIZE_V3)
             }
             _ => trap(&format!("unsupported header version: {}", header.version)),
@@ -334,7 +340,7 @@ impl<M: Memory> Storage<M> {
     ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
 
-        let (offset, buf) = self.entry_v1(data, record_number);
+        let (offset, buf) = self.entry_v1(data, record_number)?;
         self.write_anchor_bytes(offset, &buf);
         Ok(())
     }
@@ -348,7 +354,7 @@ impl<M: Memory> Storage<M> {
             RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
         let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
 
-        if buf.len() > self.value_size_limit() {
+        if buf.len() > self.value_size_limit(record_number) {
             return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
         }
         Ok((stable_offset, buf))
@@ -360,7 +366,7 @@ impl<M: Memory> Storage<M> {
         record_number: u32,
     ) -> Result<(u64, Vec<u8>), StorageError> {
         let stable_offset =
-            RESERVED_HEADER_BYTES_V3 + record_number as u64 * DEFAULT_ENTRY_SIZE_V3 as u64;
+            RESERVED_HEADER_BYTES_V3 + record_number as u64 * self.header.entry_size_new as u64;
 
         let anchor = Anchor {
             devices: data
@@ -370,7 +376,7 @@ impl<M: Memory> Storage<M> {
         };
         let buf = candid::encode_one(anchor).map_err(StorageError::SerializationError)?;
 
-        if buf.len() > DEFAULT_ENTRY_SIZE_V3 {
+        if buf.len() > self.value_size_limit(record_number) {
             return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
         }
         Ok((stable_offset, buf))
@@ -409,11 +415,11 @@ impl<M: Memory> Storage<M> {
         let len = u16::from_le_bytes(len_buf.try_into().unwrap()) as usize;
 
         // This error most likely indicates stable memory corruption.
-        if len > self.value_size_limit() {
+        if len > self.value_size_limit(record_number) {
             trap(&format!(
                 "persisted value size {} exeeds maximum size {}",
                 len,
-                self.value_size_limit()
+                self.value_size_limit(record_number)
             ))
         }
 
@@ -474,8 +480,13 @@ impl<M: Memory> Storage<M> {
         self.flush();
     }
 
-    fn value_size_limit(&self) -> usize {
-        self.header.entry_size as usize - std::mem::size_of::<u16>()
+    fn value_size_limit(&self, record_number: u32) -> usize {
+        let entry_size = if record_number < self.header.new_layout_start {
+            self.header.entry_size
+        } else {
+            self.header.entry_size_new
+        };
+        entry_size as usize - std::mem::size_of::<u16>()
     }
 
     fn user_number_to_record(&self, user_number: u64) -> Result<u32, StorageError> {
