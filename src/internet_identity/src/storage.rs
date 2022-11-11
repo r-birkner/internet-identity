@@ -62,7 +62,9 @@ use ic_cdk::api::trap;
 use ic_stable_structures::reader::{BufferedReader, OutOfBounds, Reader};
 use ic_stable_structures::writer::{BufferedWriter, Writer};
 use ic_stable_structures::Memory;
-use internet_identity_interface::UserNumber;
+use internet_identity_interface::{
+    CredentialId, DeviceKey, DeviceProtection, KeyType, Purpose, UserNumber,
+};
 use std::convert::TryInto;
 use std::fmt;
 use std::io::{Read, Write};
@@ -150,11 +152,28 @@ struct Anchor {
 }
 
 enum Device {
-    RecoveryPhrase,
+    RecoveryPhrase(RecoveryPhrase),
     WebAuthnDevice,
 }
 
-struct RecoveryPhrase {}
+struct RecoveryPhrase {
+    pubkey: DeviceKey,
+    protection: DeviceProtection,
+}
+
+struct WebAuthnDevice {
+    pubkey: DeviceKey,
+    alias: String,
+    credential_id: CredentialId,
+    purpose: Purpose,
+    key_type: WebAuthnKeyType,
+}
+
+enum WebAuthnKeyType {
+    Unknown,
+    Platform,
+    CrossPlatform,
+}
 
 impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, M> {
     /// Creates a new empty storage that manages the data of users in
