@@ -167,6 +167,12 @@ struct WebAuthnDevice {
     credential_id: CredentialId,
     purpose: Purpose,
     key_type: WebAuthnKeyType,
+    domain: Domain,
+}
+
+enum Domain {
+    Ic0App,    // https://identity.ic0.app
+    NewDomain, // ??
 }
 
 enum WebAuthnKeyType {
