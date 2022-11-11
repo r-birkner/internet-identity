@@ -153,16 +153,23 @@ struct Anchor {
 
 enum Device {
     RecoveryPhrase(RecoveryPhrase),
-    WebAuthnDevice,
+    WebAuthnDevice(WebAuthnDevice),
 }
 
 impl From<DeviceDataInternal> for Device {
     fn from(internal_device: DeviceDataInternal) -> Self {
         match internal_device.key_type {
-            None => {
-                trap("we don't have any such devices, do we??");
-            }
-            Some(_) => {}
+            Some(KeyType::SeedPhrase) => {}
+            None | Some(_) => Device::WebAuthnDevice(WebAuthnDevice {
+                pubkey: internal_device.pubkey,
+                alias: internal_device.alias,
+                credential_id: internal_device.credential_id.unwrap(),
+                purpose: internal_device.purpose.unwrap_or(Purpose::Authentication),
+                key_type: WebAuthnKeyType::from(
+                    internal_device.key_type.unwrap_or(KeyType::Unknown),
+                ),
+                domain: Domain::Ic0App,
+            }),
         };
         todo!()
     }
@@ -191,6 +198,17 @@ enum WebAuthnKeyType {
     Unknown,
     Platform,
     CrossPlatform,
+}
+
+impl From<KeyType> for WebAuthnKeyType {
+    fn from(key_type: KeyType) -> Self {
+        match key_type {
+            KeyType::Unknown => WebAuthnKeyType::Unknown,
+            KeyType::Platform => WebAuthnKeyType::Platform,
+            KeyType::CrossPlatform => WebAuthnKeyType::CrossPlatform,
+            KeyType::SeedPhrase => trap("seed phrase is not a WebAuthn key type"),
+        }
+    }
 }
 
 impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, M> {
