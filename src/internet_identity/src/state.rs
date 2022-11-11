@@ -118,7 +118,7 @@ pub struct PersistentState {
 }
 
 struct State {
-    storage: RefCell<Storage<Vec<DeviceDataInternal>, DefaultMemoryImpl>>,
+    storage: RefCell<Storage<DefaultMemoryImpl>>,
     sigs: RefCell<SignatureMap>,
     asset_hashes: RefCell<AssetHashes>,
     last_upgrade_timestamp: Cell<Timestamp>,

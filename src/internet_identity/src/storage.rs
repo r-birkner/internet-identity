@@ -106,10 +106,9 @@ pub enum MigrationState {
 }
 
 /// Data type responsible for managing user data in stable memory.
-pub struct Storage<T, M> {
+pub struct Storage<M> {
     header: HeaderV1,
     memory: M,
-    _marker: PhantomData<T>,
 }
 
 #[repr(packed)]
@@ -215,7 +214,7 @@ impl From<KeyType> for WebAuthnKeyType {
     }
 }
 
-impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, M> {
+impl<M: Memory> Storage<M> {
     /// Creates a new empty storage that manages the data of users in
     /// the specified range.
     pub fn new((id_range_lo, id_range_hi): (UserNumber, UserNumber), memory: M) -> Self {
@@ -244,7 +243,6 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
                 salt: EMPTY_SALT,
             },
             memory,
-            _marker: PhantomData,
         }
     }
 
@@ -304,11 +302,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
             trap(&format!("unsupported header version: {}", header.version));
         }
 
-        Some(Self {
-            header,
-            memory,
-            _marker: PhantomData,
-        })
+        Some(Self { header, memory })
     }
 
     /// Allocates a fresh Identity Anchor.
@@ -326,13 +320,21 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
     }
 
     /// Writes the data of the specified user to stable memory.
-    pub fn write(&mut self, user_number: UserNumber, data: T) -> Result<(), StorageError> {
+    pub fn write(
+        &mut self,
+        user_number: UserNumber,
+        data: Vec<DeviceDataInternal>,
+    ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
 
         self.write_v1(data, record_number)
     }
 
-    fn write_v1(&mut self, data: T, record_number: u32) -> Result<(), StorageError> {
+    fn write_v1(
+        &mut self,
+        data: Vec<DeviceDataInternal>,
+        record_number: u32,
+    ) -> Result<(), StorageError> {
         let stable_offset =
             RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
         let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
@@ -354,13 +356,23 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
         Ok(())
     }
 
-    /// todo: new candid layout
-    fn write_v3(&mut self, data: T, record_number: u32) -> Result<(), StorageError> {
+    fn write_v3(
+        &mut self,
+        data: Vec<DeviceDataInternal>,
+        record_number: u32,
+    ) -> Result<(), StorageError> {
         let stable_offset =
             RESERVED_HEADER_BYTES_V3 + record_number as u64 * DEFAULT_ENTRY_SIZE_V3 as u64;
-        let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
 
-        if buf.len() > self.value_size_limit() {
+        let anchor = Anchor {
+            devices: data
+                .into_iter()
+                .map(|internal_device| Device::from(internal_device))
+                .collect(),
+        };
+        let buf = candid::encode_one(anchor).map_err(StorageError::SerializationError)?;
+
+        if buf.len() > DEFAULT_ENTRY_SIZE_V3 {
             return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
         }
 
@@ -378,7 +390,7 @@ impl<T: candid::CandidType + serde::de::DeserializeOwned, M: Memory> Storage<T, 
     }
 
     /// Reads the data of the specified user from stable memory.
-    pub fn read(&self, user_number: UserNumber) -> Result<T, StorageError> {
+    pub fn read(&self, user_number: UserNumber) -> Result<Vec<DeviceDataInternal>, StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
         let stable_offset =
             RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
