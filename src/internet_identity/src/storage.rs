@@ -121,7 +121,7 @@ struct Header {
     entry_size: u16,
     salt: [u8; 32],
     entry_size_new: u16,        // post-migration entry size
-    migration_next_record: u64, // all records > this value have already been migrated to the new layout
+    migration_next_record: u32, // all records < this value are still in the old layout
     migration_batch_size: u32,  // batch size for incremental anchor migration
 }
 
@@ -263,8 +263,7 @@ impl<M: Memory> Storage<M> {
         if memory.size() < 1 {
             return None;
         }
-
-        let mut header: HeaderV1 = unsafe { std::mem::zeroed() };
+        let mut header: Header = unsafe { std::mem::zeroed() };
 
         unsafe {
             let slice = std::slice::from_raw_parts_mut(
@@ -280,11 +279,37 @@ impl<M: Memory> Storage<M> {
                 &header.magic,
             ));
         }
-        if header.version != 1 {
-            trap(&format!("unsupported header version: {}", header.version));
+
+        match header.version {
+            1 => {
+                header.version = 2;
+                header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
+                header.migration_batch_size = 100;
+                // the next user will start using the new layout
+                header.migration_next_record = header.num_users + 1
+            }
+            2 => {
+                // check if migration is actually done already
+                if header.migration_next_record == 0 {
+                    header.version = 3;
+                    header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
+                    header.migration_batch_size = 0;
+                    header.migration_next_record = 0
+                }
+            }
+            3 => {
+                // check that the header contains what we expect
+                assert_eq!(header.migration_next_record, 0);
+                assert_eq!(header.entry_size, DEFAULT_ENTRY_SIZE_V3)
+            }
+            _ => trap(&format!("unsupported header version: {}", header.version)),
         }
 
-        Some(Self { header, memory })
+        let mut storage = Self { header, memory };
+
+        // immediately write the header back, because we might have made changes
+        storage.flush();
+        Some(storage)
     }
 
     /// Allocates a fresh Identity Anchor.
