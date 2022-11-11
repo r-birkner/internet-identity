@@ -120,6 +120,7 @@ struct Header {
     id_range_hi: u64,
     entry_size: u16,
     salt: [u8; 32],
+    entry_size_new: u16,        // post-migration entry size
     migration_next_record: u64, // all records > this value have already been migrated to the new layout
     migration_batch_size: u32,  // batch size for incremental anchor migration
 }
@@ -211,14 +212,17 @@ impl<M: Memory> Storage<M> {
         }
 
         Self {
-            header: HeaderV1 {
+            header: Header {
                 magic: *b"IIC",
-                version: 1,
+                version: 3,
                 num_users: 0,
                 id_range_lo,
                 id_range_hi,
-                entry_size: DEFAULT_ENTRY_SIZE_V1,
+                entry_size: DEFAULT_ENTRY_SIZE_V3,
                 salt: EMPTY_SALT,
+                entry_size_new: DEFAULT_ENTRY_SIZE_V3,
+                migration_next_record: 0, // if this is 0, the migration is finished
+                migration_batch_size: 0,  // nothing to do
             },
             memory,
         }
