@@ -274,7 +274,7 @@ impl<M: Memory> Storage<M> {
         unsafe {
             let slice = std::slice::from_raw_parts_mut(
                 &mut header as *mut _ as *mut u8,
-                std::mem::size_of::<HeaderV1>(),
+                std::mem::size_of::<Header>(),
             );
             memory.read(0, slice);
         }
@@ -427,7 +427,8 @@ impl<M: Memory> Storage<M> {
         reader
             .read(&mut data_buf.as_mut_slice())
             .expect("failed to read memory");
-        let data: T = candid::decode_one(&data_buf).map_err(StorageError::DeserializationError)?;
+        let data: Vec<DeviceDataInternal> =
+            candid::decode_one(&data_buf).map_err(StorageError::DeserializationError)?;
 
         Ok(data)
     }
@@ -437,7 +438,7 @@ impl<M: Memory> Storage<M> {
         let slice = unsafe {
             std::slice::from_raw_parts(
                 &self.header as *const _ as *const u8,
-                std::mem::size_of::<HeaderV1>(),
+                std::mem::size_of::<Header>(),
             )
         };
         let mut writer = Writer::new(&mut self.memory, 0);
