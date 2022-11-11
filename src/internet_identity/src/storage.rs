@@ -159,7 +159,12 @@ enum Device {
 impl From<DeviceDataInternal> for Device {
     fn from(internal_device: DeviceDataInternal) -> Self {
         match internal_device.key_type {
-            Some(KeyType::SeedPhrase) => {}
+            Some(KeyType::SeedPhrase) => Device::RecoveryPhrase(RecoveryPhrase {
+                pubkey: internal_device.pubkey,
+                protection: internal_device
+                    .protection
+                    .unwrap_or(DeviceProtection::Unprotected),
+            }),
             None | Some(_) => Device::WebAuthnDevice(WebAuthnDevice {
                 pubkey: internal_device.pubkey,
                 alias: internal_device.alias,
@@ -170,8 +175,7 @@ impl From<DeviceDataInternal> for Device {
                 ),
                 domain: Domain::Ic0App,
             }),
-        };
-        todo!()
+        }
     }
 }
 
