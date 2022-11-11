@@ -112,18 +112,7 @@ pub struct Storage<M> {
 }
 
 #[repr(packed)]
-struct HeaderV1 {
-    magic: [u8; 3],
-    version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
-    num_users: u32,
-    id_range_lo: u64,
-    id_range_hi: u64,
-    entry_size: u16,
-    salt: [u8; 32],
-}
-
-#[repr(packed)]
-struct HeaderV2 {
+struct Header {
     magic: [u8; 3],
     version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
     num_users: u32,
@@ -133,17 +122,6 @@ struct HeaderV2 {
     salt: [u8; 32],
     migration_next_record: u64, // all records > this value have already been migrated to the new layout
     migration_batch_size: u32,  // batch size for incremental anchor migration
-}
-
-#[repr(packed)]
-struct HeaderV3 {
-    magic: [u8; 3],
-    version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
-    num_users: u32,
-    id_range_lo: u64,
-    id_range_hi: u64,
-    entry_size: u16,
-    salt: [u8; 32],
 }
 
 struct Anchor {
@@ -327,14 +305,16 @@ impl<M: Memory> Storage<M> {
     ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
 
-        self.write_v1(data, record_number)
+        let (offset, buf) = self.entry_v1(data, record_number);
+        self.write_anchor_bytes(offset, &buf);
+        Ok(())
     }
 
-    fn write_v1(
+    fn entry_v1(
         &mut self,
         data: Vec<DeviceDataInternal>,
         record_number: u32,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(u64, Vec<u8>), StorageError> {
         let stable_offset =
             RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
         let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
@@ -342,25 +322,14 @@ impl<M: Memory> Storage<M> {
         if buf.len() > self.value_size_limit() {
             return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
         }
-
-        // use buffered writer to minimize expensive stable memory operations
-        let mut writer = BufferedWriter::new(
-            self.header.entry_size as usize,
-            Writer::new(&mut self.memory, stable_offset),
-        );
-        writer
-            .write(&(buf.len() as u16).to_le_bytes())
-            .expect("memory write failed");
-        writer.write(&buf).expect("memory write failed");
-        writer.flush().expect("memory write failed");
-        Ok(())
+        Ok((stable_offset, buf))
     }
 
-    fn write_v3(
+    fn entry_v3(
         &mut self,
         data: Vec<DeviceDataInternal>,
         record_number: u32,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(u64, Vec<u8>), StorageError> {
         let stable_offset =
             RESERVED_HEADER_BYTES_V3 + record_number as u64 * DEFAULT_ENTRY_SIZE_V3 as u64;
 
@@ -375,7 +344,10 @@ impl<M: Memory> Storage<M> {
         if buf.len() > DEFAULT_ENTRY_SIZE_V3 {
             return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
         }
+        Ok((stable_offset, buf))
+    }
 
+    fn write_anchor_bytes(&mut self, stable_offset: u64, buf: &Vec<u8>) {
         // use buffered writer to minimize expensive stable memory operations
         let mut writer = BufferedWriter::new(
             self.header.entry_size as usize,
@@ -386,7 +358,6 @@ impl<M: Memory> Storage<M> {
             .expect("memory write failed");
         writer.write(&buf).expect("memory write failed");
         writer.flush().expect("memory write failed");
-        Ok(())
     }
 
     /// Reads the data of the specified user from stable memory.
