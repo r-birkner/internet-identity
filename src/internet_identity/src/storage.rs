@@ -232,6 +232,24 @@ impl From<WebAuthnKeyType> for KeyType {
     }
 }
 
+struct RecordMeta {
+    layout: Layout,
+    offset: u64,
+    entry_size: u16,
+}
+
+impl RecordMeta {
+    pub fn candid_size(&self) -> u16 {
+        // 2 first bytes is length of candid
+        self.entry_size - 2
+    }
+}
+
+enum Layout {
+    V1,
+    V3,
+}
+
 impl<M: Memory> Storage<M> {
     /// Creates a new empty storage that manages the data of users in
     /// the specified range.
@@ -437,30 +455,33 @@ impl<M: Memory> Storage<M> {
     /// Reads the data of the specified user from stable memory.
     pub fn read(&self, user_number: UserNumber) -> Result<Vec<DeviceDataInternal>, StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
+        let record_meta = self.record_meta(record_number);
+        let candid_bytes = self.read_entry_bytes(&record_meta);
 
-        if record_number < self.header.new_layout_start {
-            let offset =
-                RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
-            let candid_bytes = self.read_entry_bytes(offset, self.value_size_limit(record_number));
-            return candid::decode_one(&candid_bytes)
-                .map_err(StorageError::DeserializationError)?;
-        } else {
-            let offset =
-                RESERVED_HEADER_BYTES_V3 + record_number as u64 * self.header.entry_size_new as u64;
-            let candid_bytes = self.read_entry_bytes(offset, self.value_size_limit(record_number));
-            let anchor: Anchor =
-                candid::decode_one(&candid_bytes).map_err(StorageError::DeserializationError)?;
-        };
-
-        todo!()
+        match record_meta.layout {
+            Layout::V1 => {
+                candid::decode_one(&candid_bytes).map_err(StorageError::DeserializationError)
+            }
+            Layout::V3 => {
+                let anchor: Anchor = candid::decode_one(&candid_bytes)
+                    .map_err(StorageError::DeserializationError)?;
+                let devices = anchor
+                    .devices
+                    .into_iter()
+                    .map(|device| DeviceDataInternal::from(device))
+                    .collect();
+                Ok(devices)
+            }
+        }
     }
 
-    fn read_entry_bytes(&self, stable_offset: u64, size_limit: usize) -> Vec<u8> {
+    fn read_entry_bytes(&self, record_meta: &RecordMeta) -> Vec<u8> {
         // the reader will check stable memory bounds
         // use buffered reader to minimize expensive stable memory operations
-        // buffer 2 additional bytes due to the length encoding
-        let mut reader =
-            BufferedReader::new(size_limit + 2, Reader::new(&self.memory, stable_offset));
+        let mut reader = BufferedReader::new(
+            record_meta.entry_size as usize,
+            Reader::new(&self.memory, record_meta.offset),
+        );
 
         let mut len_buf = vec![0; 2];
         reader
@@ -469,10 +490,11 @@ impl<M: Memory> Storage<M> {
         let len = u16::from_le_bytes(len_buf.try_into().unwrap()) as usize;
 
         // This error most likely indicates stable memory corruption.
-        if len > size_limit {
+        if len > record_meta.candid_size() {
             trap(&format!(
                 "persisted value size {} exceeds maximum size {}",
-                len, size_limit
+                len,
+                record_meta.candid_size()
             ))
         }
 
@@ -538,6 +560,24 @@ impl<M: Memory> Storage<M> {
             self.header.entry_size_new
         };
         entry_size as usize - std::mem::size_of::<u16>()
+    }
+
+    fn record_meta(&self, record_number: u32) -> RecordMeta {
+        if record_number < self.header.new_layout_start {
+            RecordMeta {
+                layout: Layout::V1,
+                offset: RESERVED_HEADER_BYTES_V1
+                    + record_number as u64 * self.header.entry_size as u64,
+                entry_size: self.header.entry_size,
+            }
+        } else {
+            RecordMeta {
+                layout: Layout::V3,
+                offset: RESERVED_HEADER_BYTES_V3
+                    + record_number as u64 * self.header.entry_size_new as u64,
+                entry_size: self.header.entry_size_new,
+            }
+        }
     }
 
     fn user_number_to_record(&self, user_number: u64) -> Result<u32, StorageError> {
