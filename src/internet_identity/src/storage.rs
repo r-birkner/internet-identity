@@ -391,64 +391,38 @@ impl<M: Memory> Storage<M> {
         data: Vec<DeviceDataInternal>,
     ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
+        let record_meta = self.record_meta(record_number);
 
-        let (offset, candid_bytes) = if record_number < self.header.new_layout_start {
-            self.serialize_entry_v1(data, record_number)?
-        } else {
-            self.serialize_entry_v3(data, record_number)?
+        let data = match record_meta.layout {
+            Layout::V1 => candid::encode_one(data).map_err(StorageError::SerializationError)?,
+            Layout::V3 => {
+                let anchor = Anchor {
+                    devices: data
+                        .into_iter()
+                        .map(|internal_device| Device::from(internal_device))
+                        .collect(),
+                };
+                candid::encode_one(anchor).map_err(StorageError::SerializationError)?
+            }
         };
 
-        self.write_anchor_bytes(offset, &candid_bytes);
+        if buf.len() > self.value_size_limit(record_number) {
+            return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
+        }
+        self.write_anchor_bytes(&record_meta, &candid_bytes);
         Ok(())
     }
 
-    fn serialize_entry_v1(
-        &mut self,
-        data: Vec<DeviceDataInternal>,
-        record_number: u32,
-    ) -> Result<(u64, Vec<u8>), StorageError> {
-        let stable_offset =
-            RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
-        let buf = candid::encode_one(data).map_err(StorageError::SerializationError)?;
-
-        if buf.len() > self.value_size_limit(record_number) {
-            return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
-        }
-        Ok((stable_offset, buf))
-    }
-
-    fn serialize_entry_v3(
-        &mut self,
-        data: Vec<DeviceDataInternal>,
-        record_number: u32,
-    ) -> Result<(u64, Vec<u8>), StorageError> {
-        let stable_offset =
-            RESERVED_HEADER_BYTES_V3 + record_number as u64 * self.header.entry_size_new as u64;
-
-        let anchor = Anchor {
-            devices: data
-                .into_iter()
-                .map(|internal_device| Device::from(internal_device))
-                .collect(),
-        };
-        let buf = candid::encode_one(anchor).map_err(StorageError::SerializationError)?;
-
-        if buf.len() > self.value_size_limit(record_number) {
-            return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
-        }
-        Ok((stable_offset, buf))
-    }
-
-    fn write_anchor_bytes(&mut self, stable_offset: u64, buf: &Vec<u8>) {
+    fn write_anchor_bytes(&mut self, record_meta: &RecordMeta, data: &Vec<u8>) {
         // use buffered writer to minimize expensive stable memory operations
         let mut writer = BufferedWriter::new(
-            self.header.entry_size as usize,
-            Writer::new(&mut self.memory, stable_offset),
+            record_meta.entry_size as usize,
+            Writer::new(&mut self.memory, record_meta.offset),
         );
         writer
-            .write(&(buf.len() as u16).to_le_bytes())
+            .write(&(data.len() as u16).to_le_bytes())
             .expect("memory write failed");
-        writer.write(&buf).expect("memory write failed");
+        writer.write(&data).expect("memory write failed");
         writer.flush().expect("memory write failed");
     }
 
