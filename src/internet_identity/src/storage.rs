@@ -239,7 +239,7 @@ struct RecordMeta {
 }
 
 impl RecordMeta {
-    pub fn candid_size(&self) -> u16 {
+    pub fn candid_size_limit(&self) -> u16 {
         // 2 first bytes is length of candid
         self.entry_size - 2
     }
@@ -406,8 +406,8 @@ impl<M: Memory> Storage<M> {
             }
         };
 
-        if buf.len() > self.value_size_limit(record_number) {
-            return Err(StorageError::EntrySizeLimitExceeded(buf.len()));
+        if buf.len() > record_meta.candid_size_limit() {
+            return Err(StorageError::EntrySizeLimitExceeded(data.len()));
         }
         self.write_anchor_bytes(&record_meta, &candid_bytes);
         Ok(())
@@ -464,11 +464,11 @@ impl<M: Memory> Storage<M> {
         let len = u16::from_le_bytes(len_buf.try_into().unwrap()) as usize;
 
         // This error most likely indicates stable memory corruption.
-        if len > record_meta.candid_size() {
+        if len > record_meta.candid_size_limit() {
             trap(&format!(
                 "persisted value size {} exceeds maximum size {}",
                 len,
-                record_meta.candid_size()
+                record_meta.candid_size_limit()
             ))
         }
 
