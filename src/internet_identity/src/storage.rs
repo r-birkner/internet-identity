@@ -86,7 +86,6 @@ const EMPTY_SALT: [u8; 32] = [0; 32];
 const GB: u64 = 1 << 30;
 
 const STABLE_MEMORY_SIZE_V1: u64 = 8 * GB;
-const STABLE_MEMORY_SIZE_V3: u64 = 32 * GB; // II should only use the full 32 GB once migration is complete
 /// We reserve last ~10% of the stable memory for later new features.
 const STABLE_MEMORY_RESERVE: u64 = STABLE_MEMORY_SIZE_V1 / 10;
 
@@ -99,6 +98,7 @@ pub const DEFAULT_RANGE_SIZE_V1: u64 =
 
 pub type Salt = [u8; 32];
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub enum MigrationState {
     NotStarted,
     InProgress,
@@ -240,8 +240,8 @@ struct RecordMeta {
 
 impl RecordMeta {
     pub fn candid_size_limit(&self) -> usize {
-        // 2 first bytes is length of candid
-        self.entry_size as usize - 2
+        // u16 is the length of candid before the actual candid starts
+        self.entry_size as usize - std::mem::size_of::<u16>()
     }
 }
 
@@ -385,12 +385,24 @@ impl<M: Memory> Storage<M> {
     }
 
     /// Writes the data of the specified user to stable memory.
+    /// Write only happen during update calls so we can use this call to piggy back on.
     pub fn write(
         &mut self,
         user_number: UserNumber,
         data: Vec<DeviceDataInternal>,
     ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
+        self.write_internal(record_number, data)?;
+        self.migrate_record_batch()
+    }
+
+    /// Internal version of write that operates on record numbers rather than anchors,
+    /// which is more suited for the stable memory migration.
+    fn write_internal(
+        &mut self,
+        record_number: u32,
+        data: Vec<DeviceDataInternal>,
+    ) -> Result<(), StorageError> {
         let record_meta = self.record_meta(record_number);
 
         let data = match record_meta.layout {
@@ -434,6 +446,12 @@ impl<M: Memory> Storage<M> {
     /// Reads the data of the specified user from stable memory.
     pub fn read(&self, user_number: UserNumber) -> Result<Vec<DeviceDataInternal>, StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
+        self.read_internal(record_number)
+    }
+
+    /// Internal version of read that operates on record numbers rather than anchors,
+    /// which is more suited for the stable memory migration.
+    fn read_internal(&self, record_number: u32) -> Result<Vec<DeviceDataInternal>, StorageError> {
         let record_meta = self.record_meta(record_number);
         let candid_bytes = self.read_entry_bytes(&record_meta);
 
@@ -532,15 +550,6 @@ impl<M: Memory> Storage<M> {
         self.flush();
     }
 
-    fn value_size_limit(&self, record_number: u32) -> usize {
-        let entry_size = if record_number < self.header.new_layout_start {
-            self.header.entry_size
-        } else {
-            self.header.entry_size_new
-        };
-        entry_size as usize - std::mem::size_of::<u16>()
-    }
-
     fn record_meta(&self, record_number: u32) -> RecordMeta {
         if record_number < self.header.new_layout_start {
             RecordMeta {
@@ -630,16 +639,42 @@ impl<M: Memory> Storage<M> {
         candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
     }
 
-    pub fn migrate_next_anchor(&mut self) -> Result<(), StorageError> {
-        if self.header.new_layout_start == 0 {
-            // migration is done
+    fn migrate_record_batch(&mut self) -> Result<(), StorageError> {
+        if self.migration_state() == MigrationState::Finished {
             return Ok(());
         }
-        let record = self.header.new_layout_start - 1;
+
+        for _ in 0..self.header.migration_batch_size {
+            if self.header.new_layout_start == 0 {
+                self.finalize_migration();
+                return Ok(());
+            }
+            let record = self.header.new_layout_start - 1;
+            self.migrate_record(record)?;
+        }
+
+        // write the modified migration state back to stable memory
+        self.flush();
+
+        Ok(())
     }
 
     fn migrate_record(&mut self, record: u32) -> Result<(), StorageError> {
-        todo!() // make read aware of migration: read, update pointer, write
+        let data = self.read_internal(record)?;
+
+        // modifying this pointer will make write switch to the new layout.
+        self.header.new_layout_start -= 1;
+        assert_eq!(record, { self.header.new_layout_start });
+
+        self.write_internal(record, data)
+    }
+
+    fn finalize_migration(&mut self) {
+        self.header.version = 3;
+        self.header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
+        self.header.migration_batch_size = 0;
+        self.header.new_layout_start = 0;
+        self.flush();
     }
 }
 
