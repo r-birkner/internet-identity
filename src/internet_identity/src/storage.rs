@@ -566,6 +566,18 @@ impl<M: Memory> Storage<M> {
 
         candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
     }
+
+    pub fn migrate_next_anchor(&mut self) -> Result<(), StorageError> {
+        if self.header.new_layout_start == 0 {
+            // migration is done
+            return Ok(());
+        }
+        let record = self.header.new_layout_start - 1;
+    }
+
+    fn migrate_record(&mut self, record: u32) -> Result<(), StorageError> {
+        todo!() // make read aware of migration: read, update pointer, write
+    }
 }
 
 #[derive(Debug)]
