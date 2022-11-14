@@ -239,9 +239,9 @@ struct RecordMeta {
 }
 
 impl RecordMeta {
-    pub fn candid_size_limit(&self) -> u16 {
+    pub fn candid_size_limit(&self) -> usize {
         // 2 first bytes is length of candid
-        self.entry_size - 2
+        self.entry_size as usize - 2
     }
 }
 
@@ -414,7 +414,7 @@ impl<M: Memory> Storage<M> {
         record_meta: RecordMeta,
         data: Vec<u8>,
     ) -> Result<(), StorageError> {
-        if buf.len() > record_meta.candid_size_limit() {
+        if data.len() > record_meta.candid_size_limit() {
             return Err(StorageError::EntrySizeLimitExceeded(data.len()));
         }
 
@@ -424,9 +424,9 @@ impl<M: Memory> Storage<M> {
             Writer::new(&mut self.memory, record_meta.offset),
         );
         writer
-            .write(&(candid_bytes.len() as u16).to_le_bytes())
+            .write(&(data.len() as u16).to_le_bytes())
             .expect("memory write failed");
-        writer.write(&&candid_bytes).expect("memory write failed");
+        writer.write(&data).expect("memory write failed");
         writer.flush().expect("memory write failed");
         Ok(())
     }
