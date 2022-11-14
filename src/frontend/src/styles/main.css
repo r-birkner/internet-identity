@@ -875,6 +875,7 @@ a:hover,
 .c-footer {
   position: relative;
   font-size: 0.8em;
+  margin-left: 9em;
 }
 
 .c-footer::before {
@@ -898,6 +899,12 @@ a:hover,
   text-decoration: none;
   align-items: center;
   gap: var(--vs-inline);
+}
+
+.c-footer__logo {
+  position: absolute;
+  right: 100%;
+  top: var(--rs-footer-stack);
 }
 
 .c-signature svg {
@@ -926,6 +933,8 @@ a:hover,
   display: inline-block;
   animation: revealAndHideLetter 20s ease-in-out forwards infinite;
   animation-delay: calc(var(--i) * 1.2s);
+
+  will-change: opacity, text-shadow, transform, color;
 }
 
 .c-signature__part--second i {
