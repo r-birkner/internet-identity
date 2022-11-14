@@ -136,6 +136,29 @@ enum Device {
     WebAuthnDevice(WebAuthnDevice),
 }
 
+impl From<Device> for DeviceDataInternal {
+    fn from(device: Device) -> Self {
+        match device {
+            Device::RecoveryPhrase(recovery_phrase) => Self {
+                pubkey: recovery_phrase.pubkey,
+                alias: "Recovery phrase".to_string(),
+                credential_id: None,
+                purpose: Some(Purpose::Recovery),
+                key_type: Some(KeyType::SeedPhrase),
+                protection: Some(recovery_phrase.protection),
+            },
+            Device::WebAuthnDevice(webauthn_device) => Self {
+                pubkey: webauthn_device.pubkey,
+                alias: webauthn_device.alias,
+                credential_id: Some(webauthn_device.credential_id),
+                purpose: Some(webauthn_device.purpose),
+                key_type: Some(KeyType::from(webauthn_device.key_type)),
+                protection: Some(DeviceProtection::Unprotected),
+            },
+        }
+    }
+}
+
 impl From<DeviceDataInternal> for Device {
     fn from(internal_device: DeviceDataInternal) -> Self {
         match internal_device.key_type {
@@ -195,6 +218,16 @@ impl From<KeyType> for WebAuthnKeyType {
             KeyType::Platform => WebAuthnKeyType::Platform,
             KeyType::CrossPlatform => WebAuthnKeyType::CrossPlatform,
             KeyType::SeedPhrase => trap("seed phrase is not a WebAuthn key type"),
+        }
+    }
+}
+
+impl From<WebAuthnKeyType> for KeyType {
+    fn from(key_type: WebAuthnKeyType) -> Self {
+        match key_type {
+            WebAuthnKeyType::Unknown => KeyType::Unknown,
+            WebAuthnKeyType::Platform => KeyType::Platform,
+            WebAuthnKeyType::CrossPlatform => KeyType::CrossPlatform,
         }
     }
 }
@@ -341,17 +374,17 @@ impl<M: Memory> Storage<M> {
     ) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
 
-        let (offset, buf) = if record_number < self.header.new_layout_start {
-            self.entry_v1(data, record_number)?
+        let (offset, candid_bytes) = if record_number < self.header.new_layout_start {
+            self.serialize_entry_v1(data, record_number)?
         } else {
-            self.entry_v3(data, record_number)?
+            self.serialize_entry_v3(data, record_number)?
         };
 
-        self.write_anchor_bytes(offset, &buf);
+        self.write_anchor_bytes(offset, &candid_bytes);
         Ok(())
     }
 
-    fn entry_v1(
+    fn serialize_entry_v1(
         &mut self,
         data: Vec<DeviceDataInternal>,
         record_number: u32,
@@ -366,7 +399,7 @@ impl<M: Memory> Storage<M> {
         Ok((stable_offset, buf))
     }
 
-    fn entry_v3(
+    fn serialize_entry_v3(
         &mut self,
         data: Vec<DeviceDataInternal>,
         record_number: u32,
@@ -404,15 +437,30 @@ impl<M: Memory> Storage<M> {
     /// Reads the data of the specified user from stable memory.
     pub fn read(&self, user_number: UserNumber) -> Result<Vec<DeviceDataInternal>, StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
-        let stable_offset =
-            RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
 
+        if record_number < self.header.new_layout_start {
+            let offset =
+                RESERVED_HEADER_BYTES_V1 + record_number as u64 * self.header.entry_size as u64;
+            let candid_bytes = self.read_entry_bytes(offset, self.value_size_limit(record_number));
+            return candid::decode_one(&candid_bytes)
+                .map_err(StorageError::DeserializationError)?;
+        } else {
+            let offset =
+                RESERVED_HEADER_BYTES_V3 + record_number as u64 * self.header.entry_size_new as u64;
+            let candid_bytes = self.read_entry_bytes(offset, self.value_size_limit(record_number));
+            let anchor: Anchor =
+                candid::decode_one(&candid_bytes).map_err(StorageError::DeserializationError)?;
+        };
+
+        todo!()
+    }
+
+    fn read_entry_bytes(&self, stable_offset: u64, size_limit: usize) -> Vec<u8> {
         // the reader will check stable memory bounds
         // use buffered reader to minimize expensive stable memory operations
-        let mut reader = BufferedReader::new(
-            self.header.entry_size as usize,
-            Reader::new(&self.memory, stable_offset),
-        );
+        // buffer 2 additional bytes due to the length encoding
+        let mut reader =
+            BufferedReader::new(size_limit + 2, Reader::new(&self.memory, stable_offset));
 
         let mut len_buf = vec![0; 2];
         reader
@@ -421,11 +469,10 @@ impl<M: Memory> Storage<M> {
         let len = u16::from_le_bytes(len_buf.try_into().unwrap()) as usize;
 
         // This error most likely indicates stable memory corruption.
-        if len > self.value_size_limit(record_number) {
+        if len > size_limit {
             trap(&format!(
-                "persisted value size {} exeeds maximum size {}",
-                len,
-                self.value_size_limit(record_number)
+                "persisted value size {} exceeds maximum size {}",
+                len, size_limit
             ))
         }
 
@@ -433,10 +480,7 @@ impl<M: Memory> Storage<M> {
         reader
             .read(&mut data_buf.as_mut_slice())
             .expect("failed to read memory");
-        let data: Vec<DeviceDataInternal> =
-            candid::decode_one(&data_buf).map_err(StorageError::DeserializationError)?;
-
-        Ok(data)
+        data_buf
     }
 
     /// Make sure all the required metadata is recorded to stable memory.
