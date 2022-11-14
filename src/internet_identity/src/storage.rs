@@ -64,7 +64,7 @@ use ic_stable_structures::reader::{BufferedReader, OutOfBounds, Reader};
 use ic_stable_structures::writer::{BufferedWriter, Writer};
 use ic_stable_structures::Memory;
 use internet_identity_interface::{
-    CredentialId, DeviceKey, DeviceProtection, KeyType, Purpose, UserNumber,
+    CredentialId, DeviceKey, DeviceProtection, KeyType, MigrationState, Purpose, UserNumber,
 };
 use std::convert::TryInto;
 use std::fmt;
@@ -97,13 +97,6 @@ pub const DEFAULT_RANGE_SIZE_V1: u64 =
         / DEFAULT_ENTRY_SIZE_V1 as u64;
 
 pub type Salt = [u8; 32];
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-pub enum MigrationState {
-    NotStarted,
-    InProgress,
-    Finished,
-}
 
 /// Data type responsible for managing user data in stable memory.
 pub struct Storage<M> {
@@ -304,7 +297,7 @@ impl<M: Memory> Storage<M> {
     pub fn migration_state(&self) -> MigrationState {
         match self.header.version {
             1 => MigrationState::NotStarted,
-            2 => MigrationState::InProgress,
+            2 => MigrationState::InProgress(self.header.new_layout_start as u64),
             3 => MigrationState::Finished,
             _ => trap("unsupported header version"),
         }
@@ -316,7 +309,7 @@ impl<M: Memory> Storage<M> {
     ///
     /// Panics if the memory is not empty but cannot be
     /// decoded.
-    pub fn from_memory(memory: M) -> Option<Self> {
+    pub fn from_memory(memory: M, migration_batch_size: Option<u32>) -> Option<Self> {
         if memory.size() < 1 {
             return None;
         }
@@ -337,36 +330,11 @@ impl<M: Memory> Storage<M> {
             ));
         }
 
-        match header.version {
-            1 => {
-                header.version = 2;
-                header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
-                header.migration_batch_size = 100;
-                // the next user will start using the new layout
-                header.new_layout_start = header.num_users + 1
-            }
-            2 => {
-                // check if migration is actually done already
-                if header.new_layout_start == 0 {
-                    header.version = 3;
-                    header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
-                    header.migration_batch_size = 0;
-                    header.new_layout_start = 0
-                }
-            }
-            3 => {
-                // check that the header contains what we expect
-                // unaligned values wrapped with {}, see: https://github.com/rust-lang/rust/issues/82523
-                assert_eq!({ header.new_layout_start }, 0);
-                assert_eq!({ header.entry_size }, DEFAULT_ENTRY_SIZE_V3)
-            }
-            _ => trap(&format!("unsupported header version: {}", header.version)),
-        }
-
         let mut storage = Self { header, memory };
 
-        // immediately write the header back, because we might have made changes
-        storage.flush();
+        if let Some(batch_size) = migration_batch_size {
+            storage.configure_migration(batch_size);
+        }
         Some(storage)
     }
 
@@ -637,6 +605,26 @@ impl<M: Memory> Storage<M> {
             .map_err(|err| PersistentStateError::ReadError(err))?;
 
         candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
+    }
+
+    fn configure_migration(&mut self, batch_size: u32) {
+        let migration_state = self.migration_state();
+
+        if let MigrationState::Finished = migration_state {
+            // nothing to do, we're done
+            return;
+        }
+
+        if batch_size > 0 && migration_state == MigrationState::NotStarted {
+            // initialize header for migration
+            self.header.version = 2;
+            self.header.entry_size_new = DEFAULT_ENTRY_SIZE_V3;
+            // the next user will start using the new layout
+            self.header.new_layout_start = self.header.num_users + 1;
+        }
+
+        self.header.migration_batch_size = batch_size;
+        self.flush();
     }
 
     fn migrate_record_batch(&mut self) -> Result<(), StorageError> {

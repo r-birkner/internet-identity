@@ -185,6 +185,17 @@ pub struct InternetIdentityInit {
     pub assigned_user_number_range: Option<(UserNumber, UserNumber)>,
     pub archive_module_hash: Option<[u8; 32]>,
     pub canister_creation_cycles_cost: Option<u64>,
+    pub memory_migration_batch_size: Option<u32>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+pub enum MigrationState {
+    #[serde(rename = "not_started")]
+    NotStarted,
+    #[serde(rename = "in_progress")]
+    InProgress(u64),
+    #[serde(rename = "finished")]
+    Finished,
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize)]
