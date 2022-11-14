@@ -628,7 +628,15 @@ impl<M: Memory> Storage<M> {
     }
 
     fn migrate_record_batch(&mut self) -> Result<(), StorageError> {
-        if self.migration_state() == MigrationState::Finished {
+        let migration_state = self.migration_state();
+        if migration_state == MigrationState::Finished
+            || migration_state == MigrationState::NotStarted
+        {
+            return Ok(());
+        }
+
+        if self.header.migration_batch_size == 0 {
+            // migration is paused
             return Ok(());
         }
 
