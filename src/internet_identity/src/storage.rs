@@ -409,21 +409,18 @@ impl<M: Memory> Storage<M> {
         if buf.len() > record_meta.candid_size_limit() {
             return Err(StorageError::EntrySizeLimitExceeded(data.len()));
         }
-        self.write_anchor_bytes(&record_meta, &candid_bytes);
-        Ok(())
-    }
 
-    fn write_anchor_bytes(&mut self, record_meta: &RecordMeta, data: &Vec<u8>) {
         // use buffered writer to minimize expensive stable memory operations
         let mut writer = BufferedWriter::new(
             record_meta.entry_size as usize,
             Writer::new(&mut self.memory, record_meta.offset),
         );
         writer
-            .write(&(data.len() as u16).to_le_bytes())
+            .write(&(candid_bytes.len() as u16).to_le_bytes())
             .expect("memory write failed");
-        writer.write(&data).expect("memory write failed");
+        writer.write(&&candid_bytes).expect("memory write failed");
         writer.flush().expect("memory write failed");
+        Ok(())
     }
 
     /// Reads the data of the specified user from stable memory.
