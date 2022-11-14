@@ -406,6 +406,14 @@ impl<M: Memory> Storage<M> {
             }
         };
 
+        self.write_entry_bytes(record_meta, data)
+    }
+
+    fn write_entry_bytes(
+        &mut self,
+        record_meta: RecordMeta,
+        data: Vec<u8>,
+    ) -> Result<(), StorageError> {
         if buf.len() > record_meta.candid_size_limit() {
             return Err(StorageError::EntrySizeLimitExceeded(data.len()));
         }
