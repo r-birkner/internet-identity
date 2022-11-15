@@ -85,15 +85,18 @@ const DEFAULT_ENTRY_SIZE_V3: u16 = 4096;
 const EMPTY_SALT: [u8; 32] = [0; 32];
 const GB: u64 = 1 << 30;
 
-const STABLE_MEMORY_SIZE_V1: u64 = 8 * GB;
+/// In practice, II has 32 GB of stable memory available. But we want to keep the default
+/// user range until the stable memory migration is complete. Thus we keep this value for anchor
+/// range checking for the time being.
+const LEGACY_STABLE_MEMORY_SIZE: u64 = 8 * GB;
 /// We reserve last ~10% of the stable memory for later new features.
-const STABLE_MEMORY_RESERVE: u64 = STABLE_MEMORY_SIZE_V1 / 10;
+const STABLE_MEMORY_RESERVE: u64 = LEGACY_STABLE_MEMORY_SIZE / 10;
 
 const PERSISTENT_STATE_MAGIC: [u8; 4] = *b"IIPS"; // II Persistent State
 
 /// The maximum number of users this canister can store.
 pub const DEFAULT_RANGE_SIZE_V1: u64 =
-    (STABLE_MEMORY_SIZE_V1 - RESERVED_HEADER_BYTES_V1 - STABLE_MEMORY_RESERVE)
+    (LEGACY_STABLE_MEMORY_SIZE - RESERVED_HEADER_BYTES_V1 - STABLE_MEMORY_RESERVE)
         / DEFAULT_ENTRY_SIZE_V1 as u64;
 
 pub type Salt = [u8; 32];
@@ -485,7 +488,7 @@ impl<M: Memory> Storage<M> {
 
     /// Returns the maximum number of entries that this storage can fit.
     pub fn max_entries(&self) -> usize {
-        ((STABLE_MEMORY_SIZE_V1 - RESERVED_HEADER_BYTES_V1 - STABLE_MEMORY_RESERVE)
+        ((LEGACY_STABLE_MEMORY_SIZE - RESERVED_HEADER_BYTES_V1 - STABLE_MEMORY_RESERVE)
             / self.header.entry_size as u64) as usize
     }
 
