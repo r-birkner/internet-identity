@@ -301,7 +301,11 @@ impl<M: Memory> Storage<M> {
     pub fn migration_state(&self) -> MigrationState {
         match self.header.version {
             1 => MigrationState::NotStarted,
-            2 => MigrationState::InProgress(self.header.new_layout_start as u64),
+            2 if self.header.migration_batch_size == 0 => MigrationState::Paused,
+            2 => MigrationState::InProgress {
+                anchors_left: self.header.new_layout_start as u64,
+                batch_size: self.header.migration_batch_size as u64,
+            },
             3 => MigrationState::Finished,
             _ => trap("unsupported header version"),
         }
@@ -556,7 +560,17 @@ impl<M: Memory> Storage<M> {
     /// reserve at the end of stable memory.
     fn unused_memory_start(&self) -> u64 {
         let record_number = self.header.num_users as u64;
-        RESERVED_HEADER_BYTES_V1 + record_number * self.header.entry_size as u64
+        match self.migration_state() {
+            MigrationState::NotStarted => {
+                RESERVED_HEADER_BYTES_V1 + record_number * self.header.entry_size as u64
+            }
+            MigrationState::InProgress { .. } | MigrationState::Paused => {
+                RESERVED_HEADER_BYTES_V3 + record_number * self.header.entry_size_new as u64
+            }
+            MigrationState::Finished => {
+                RESERVED_HEADER_BYTES_V3 + record_number * self.header.entry_size as u64
+            }
+        }
     }
 
     /// Writes the persistent state to stable memory just outside of the space allocated to the highest user number.
@@ -628,25 +642,23 @@ impl<M: Memory> Storage<M> {
     }
 
     fn migrate_record_batch(&mut self) -> Result<(), StorageError> {
-        let migration_state = self.migration_state();
-        if migration_state == MigrationState::Finished
-            || migration_state == MigrationState::NotStarted
-        {
-            return Ok(());
+        match self.migration_state() {
+            MigrationState::NotStarted | MigrationState::Paused | MigrationState::Finished => {
+                return Ok(())
+            }
+            MigrationState::InProgress { .. } => {}
         }
 
-        if self.header.migration_batch_size == 0 {
-            // migration is paused
-            return Ok(());
-        }
+        assert!(self.header.new_layout_start > 0);
 
         for _ in 0..self.header.migration_batch_size {
+            let record = self.header.new_layout_start - 1;
+            self.migrate_record(record)?;
+
             if self.header.new_layout_start == 0 {
                 self.finalize_migration();
                 return Ok(());
             }
-            let record = self.header.new_layout_start - 1;
-            self.migrate_record(record)?;
         }
 
         // write the modified migration state back to stable memory
@@ -660,7 +672,9 @@ impl<M: Memory> Storage<M> {
 
         // modifying this pointer will make write switch to the new layout.
         self.header.new_layout_start -= 1;
+
         assert_eq!(record, { self.header.new_layout_start });
+
         self.write_internal(record, data)
     }
 

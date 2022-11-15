@@ -120,11 +120,13 @@ type GetDelegationResponse = variant {
 };
 
 type InternetIdentityStats = record {
-  users_registered: nat64;
-  assigned_user_number_range: record { nat64; nat64; };
-  archive_info: ArchiveInfo;
-  canister_creation_cycles_cost: nat64;
-  anchor_migration_state: MigrationInfo;
+    users_registered: nat64;
+    assigned_user_number_range: record { nat64; nat64; };
+    archive_info: ArchiveInfo;
+    canister_creation_cycles_cost: nat64;
+
+    // this is opt so that we can remove the migration state after the migration without breaking any clients
+    anchor_migration_state: opt MigrationState;
 };
 
 // Information about the archive.
@@ -137,14 +139,14 @@ type ArchiveInfo = record {
     expected_wasm_hash: opt blob;
 };
 
-type MigrationInfo = record {
-    state: MigrationState;
-    batch_size: nat64;
-};
-
 type MigrationState = variant {
     not_started;
-    in_progress: nat64; // number of anchors that still need migration. Once it reaches 0, the migration is finished.
+    in_progress: record {
+        // number of anchors that still need migration. Once it reaches 0, the migration is finished.
+        anchors_left: nat64;
+        batch_size: nat64;
+    };
+    paused;
     finished;
 };
 

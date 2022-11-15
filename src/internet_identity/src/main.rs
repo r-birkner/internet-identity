@@ -166,6 +166,7 @@ fn stats() -> InternetIdentityStats {
         users_registered: storage.user_count() as u64,
         archive_info,
         canister_creation_cycles_cost,
+        anchor_migration_state: Some(storage.migration_state()),
     })
 }
 

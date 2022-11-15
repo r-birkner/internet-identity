@@ -193,7 +193,9 @@ pub enum MigrationState {
     #[serde(rename = "not_started")]
     NotStarted,
     #[serde(rename = "in_progress")]
-    InProgress(u64),
+    InProgress { anchors_left: u64, batch_size: u64 },
+    #[serde(rename = "paused")]
+    Paused,
     #[serde(rename = "finished")]
     Finished,
 }
@@ -204,6 +206,7 @@ pub struct InternetIdentityStats {
     pub users_registered: u64,
     pub archive_info: ArchiveInfo,
     pub canister_creation_cycles_cost: u64,
+    pub anchor_migration_state: Option<MigrationState>,
 }
 
 // Archive specific types
