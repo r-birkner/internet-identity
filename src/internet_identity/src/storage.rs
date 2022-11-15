@@ -241,10 +241,20 @@ struct RecordMeta {
 impl RecordMeta {
     pub fn candid_size_limit(&self) -> usize {
         // u16 is the length of candid before the actual candid starts
-        self.entry_size as usize - std::mem::size_of::<u16>()
+        match self.layout {
+            Layout::V1 => {
+                // size minus candid length
+                self.entry_size as usize - std::mem::size_of::<u16>()
+            }
+            Layout::V3 => {
+                // size minus candid length and version byte
+                self.entry_size as usize - std::mem::size_of::<u16>() - std::mem::size_of::<u8>()
+            }
+        }
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
 enum Layout {
     V1,
     V3,
@@ -408,8 +418,10 @@ impl<M: Memory> Storage<M> {
 
         if record_meta.layout == Layout::V3 {
             // starting with layout v3, we introduce per record versioning which will facilitate
-            // breaking changes in the anchor candid schema.
-            writer.write(&[ANCHOR_RECORD_VERSION])
+            // changes in the anchor candid schema.
+            writer
+                .write(&[ANCHOR_RECORD_VERSION])
+                .expect("memory write failed");
         }
 
         writer
@@ -466,7 +478,7 @@ impl<M: Memory> Storage<M> {
                 .expect("failed to read memory");
             assert_eq!(
                 version_buf.get(0).unwrap(),
-                ANCHOR_RECORD_VERSION,
+                &ANCHOR_RECORD_VERSION,
                 "unsupported record version"
             )
         }
