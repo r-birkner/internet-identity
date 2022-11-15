@@ -163,7 +163,7 @@ type InternetIdentityInit = record {
     // canister creation cost, the newly created canister will keep extra cycles.
     canister_creation_cycles_cost : opt nat64;
     // Anchor migration batch size for the stable memory migration.
-    // If set to 0, migration is disabled (if the migration was already started, it will be halted in the current state).
+    // If set to 0, migration is disabled (if the migration was already started, it will be paused in the current state).
     memory_migration_batch_size: opt nat32;
 };
 

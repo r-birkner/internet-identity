@@ -58,16 +58,6 @@ pub enum KeyType {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
-pub enum WebAuthnKeyType {
-    #[serde(rename = "unknown")]
-    Unknown,
-    #[serde(rename = "platform")]
-    Platform,
-    #[serde(rename = "cross_platform")]
-    CrossPlatform,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, CandidType, Deserialize)]
 pub enum DeviceProtection {
     #[serde(rename = "protected")]
     Protected,
