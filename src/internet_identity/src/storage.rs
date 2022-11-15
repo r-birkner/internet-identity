@@ -401,6 +401,15 @@ impl<M: Memory> Storage<M> {
             record_meta.entry_size as usize,
             Writer::new(&mut self.memory, record_meta.offset),
         );
+
+        if record_meta.layout == Layout::V3 {
+            // starting with layout v3, we introduce per record versioning which will facilitate
+            // breaking changes in the anchor candid schema.
+
+            // record candid schema v1
+            writer.write(&[1u8])
+        }
+
         writer
             .write(&(data.len() as u16).to_le_bytes())
             .expect("memory write failed");
