@@ -121,10 +121,6 @@ struct Header {
     migration_batch_size: u32, // batch size for incremental anchor migration
 }
 
-/// The version tag of the current Anchor layout.
-/// This will be refactored to bind the version number directly to the candid parsing, once the
-/// legacy layout has been removed.
-const ANCHOR_RECORD_VERSION: u8 = 1;
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct Anchor {
     devices: Vec<Device>,
@@ -241,16 +237,7 @@ struct RecordMeta {
 impl RecordMeta {
     pub fn candid_size_limit(&self) -> usize {
         // u16 is the length of candid before the actual candid starts
-        match self.layout {
-            Layout::V1 => {
-                // size minus candid length
-                self.entry_size as usize - std::mem::size_of::<u16>()
-            }
-            Layout::V3 => {
-                // size minus candid length and version byte
-                self.entry_size as usize - std::mem::size_of::<u16>() - std::mem::size_of::<u8>()
-            }
-        }
+        self.entry_size as usize - std::mem::size_of::<u16>()
     }
 }
 
@@ -416,14 +403,6 @@ impl<M: Memory> Storage<M> {
             Writer::new(&mut self.memory, record_meta.offset),
         );
 
-        if record_meta.layout == Layout::V3 {
-            // starting with layout v3, we introduce per record versioning which will facilitate
-            // changes in the anchor candid schema.
-            writer
-                .write(&[ANCHOR_RECORD_VERSION])
-                .expect("memory write failed");
-        }
-
         writer
             .write(&(data.len() as u16).to_le_bytes())
             .expect("memory write failed");
@@ -468,20 +447,6 @@ impl<M: Memory> Storage<M> {
             record_meta.entry_size as usize,
             Reader::new(&self.memory, record_meta.offset),
         );
-
-        if record_meta.layout == Layout::V3 {
-            // starting with layout v3, we introduce per record versioning which will facilitate
-            // breaking changes in the anchor candid schema.
-            let mut version_buf = vec![0; 1];
-            reader
-                .read(&mut version_buf.as_mut_slice())
-                .expect("failed to read memory");
-            assert_eq!(
-                version_buf.get(0).unwrap(),
-                &ANCHOR_RECORD_VERSION,
-                "unsupported record version"
-            )
-        }
 
         let mut len_buf = vec![0; 2];
         reader
