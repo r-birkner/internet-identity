@@ -271,8 +271,8 @@ impl<M: Memory> Storage<M> {
                 entry_size: DEFAULT_ENTRY_SIZE_V3,
                 salt: EMPTY_SALT,
                 entry_size_new: DEFAULT_ENTRY_SIZE_V3,
-                new_layout_start: 0, // if this is 0, the migration is finished
-                migration_batch_size: 0, // nothing to do
+                new_layout_start: 0,
+                migration_batch_size: 0,
             },
             memory,
         }
@@ -309,7 +309,7 @@ impl<M: Memory> Storage<M> {
     ///
     /// Panics if the memory is not empty but cannot be
     /// decoded.
-    pub fn from_memory(memory: M, migration_batch_size: Option<u32>) -> Option<Self> {
+    pub fn from_memory(memory: M) -> Option<Self> {
         if memory.size() < 1 {
             return None;
         }
@@ -330,12 +330,7 @@ impl<M: Memory> Storage<M> {
             ));
         }
 
-        let mut storage = Self { header, memory };
-
-        if let Some(batch_size) = migration_batch_size {
-            storage.configure_migration(batch_size);
-        }
-        Some(storage)
+        Some(Self { header, memory })
     }
 
     /// Allocates a fresh Identity Anchor.
@@ -607,7 +602,7 @@ impl<M: Memory> Storage<M> {
         candid::decode_one(&data_buf).map_err(|err| PersistentStateError::CandidError(err))
     }
 
-    fn configure_migration(&mut self, batch_size: u32) {
+    pub fn configure_migration(&mut self, batch_size: u32) {
         let migration_state = self.migration_state();
 
         if let MigrationState::Finished = migration_state {

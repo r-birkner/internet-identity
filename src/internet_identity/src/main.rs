@@ -232,6 +232,9 @@ fn post_upgrade(maybe_arg: Option<InternetIdentityInit>) {
                 persistent_state.canister_creation_cycles_cost = cost;
             })
         }
+        if let Some(batch_size) = arg.memory_migration_batch_size {
+            state::storage_mut(|storage| storage.configure_migration(batch_size))
+        }
     }
 }
 
