@@ -110,7 +110,7 @@ pub struct Storage<M> {
 #[repr(packed)]
 struct Header {
     magic: [u8; 3],
-    version: u8, // 1: genesis layout, 2: migration in progress, 3: post-migration layout
+    version: u8, // 1: legacy layout, 2: migration in progress, 3: post-migration layout
     num_users: u32,
     id_range_lo: u64,
     id_range_hi: u64,
@@ -121,7 +121,9 @@ struct Header {
     migration_batch_size: u32, // batch size for incremental anchor migration
 }
 
-/// The version tag of the current Anchor layout. Once the migration is complete
+/// The version tag of the current Anchor layout.
+/// This will be refactored to bind the version number directly to the candid parsing, once the
+/// legacy layout has been removed.
 const ANCHOR_RECORD_VERSION: u8 = 1;
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct Anchor {
