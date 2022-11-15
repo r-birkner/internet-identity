@@ -121,6 +121,8 @@ struct Header {
     migration_batch_size: u32, // batch size for incremental anchor migration
 }
 
+/// The version tag of the current Anchor layout. Once the migration is complete
+const ANCHOR_RECORD_VERSION: u8 = 1;
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct Anchor {
     devices: Vec<Device>,
@@ -405,9 +407,7 @@ impl<M: Memory> Storage<M> {
         if record_meta.layout == Layout::V3 {
             // starting with layout v3, we introduce per record versioning which will facilitate
             // breaking changes in the anchor candid schema.
-
-            // record candid schema v1
-            writer.write(&[1u8])
+            writer.write(&[ANCHOR_RECORD_VERSION])
         }
 
         writer
@@ -454,6 +454,20 @@ impl<M: Memory> Storage<M> {
             record_meta.entry_size as usize,
             Reader::new(&self.memory, record_meta.offset),
         );
+
+        if record_meta.layout == Layout::V3 {
+            // starting with layout v3, we introduce per record versioning which will facilitate
+            // breaking changes in the anchor candid schema.
+            let mut version_buf = vec![0; 1];
+            reader
+                .read(&mut version_buf.as_mut_slice())
+                .expect("failed to read memory");
+            assert_eq!(
+                version_buf.get(0).unwrap(),
+                ANCHOR_RECORD_VERSION,
+                "unsupported record version"
+            )
+        }
 
         let mut len_buf = vec![0; 2];
         reader
@@ -668,7 +682,6 @@ impl<M: Memory> Storage<M> {
         // modifying this pointer will make write switch to the new layout.
         self.header.new_layout_start -= 1;
         assert_eq!(record, { self.header.new_layout_start });
-
         self.write_internal(record, data)
     }
 
