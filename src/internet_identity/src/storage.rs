@@ -700,6 +700,11 @@ impl<M: Memory> Storage<M> {
     }
 
     fn migrate_record_batch(&mut self) -> Result<(), StorageError> {
+        let counter_start = ic_cdk::api::instruction_counter();
+        ic_cdk::api::print(format!(
+            "cycles, time elapsed when starting: {}",
+            counter_start
+        ));
         match self.migration_state() {
             MigrationState::NotStarted | MigrationState::Paused | MigrationState::Finished => {
                 return Ok(())
@@ -721,6 +726,13 @@ impl<M: Memory> Storage<M> {
 
         // write the modified migration state back to stable memory
         self.flush();
+
+        let counter_finished = ic_cdk::api::instruction_counter();
+        ic_cdk::api::print(format!(
+            "cycles elapsed when finished: {}",
+            counter_finished
+        ));
+        ic_cdk::api::print(format!("diff: {}", counter_finished - counter_start));
 
         Ok(())
     }
