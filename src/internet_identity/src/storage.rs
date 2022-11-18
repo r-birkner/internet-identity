@@ -56,7 +56,7 @@
 //! without the risk of running out of space (which might easily happen if the RESERVED_HEADER_BYTES
 //! were used instead).
 
-use crate::state::{DeviceDataInternal, PersistentState};
+use crate::state::{Anchor, DeviceDataInternal, PersistentState};
 use candid;
 use candid::{CandidType, Deserialize};
 use ic_cdk::api::trap;
@@ -110,7 +110,7 @@ pub struct Storage<M> {
 #[repr(packed)]
 struct Header {
     magic: [u8; 3],
-    version: u8, // 1: legacy layout, 2: migration in progress, 3: post-migration layout
+    version: u8,
     num_users: u32,
     id_range_lo: u64,
     id_range_hi: u64,
@@ -119,123 +119,6 @@ struct Header {
     entry_size_new: u16,       // post-migration entry size
     new_layout_start: u32,     // all records < this value are still in the old layout
     migration_batch_size: u32, // batch size for incremental anchor migration
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-struct Anchor {
-    devices: Vec<Device>,
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-enum Device {
-    RecoveryPhrase(RecoveryPhrase),
-    WebAuthnDevice(WebAuthnDevice),
-}
-
-impl From<Device> for DeviceDataInternal {
-    fn from(device: Device) -> Self {
-        match device {
-            Device::RecoveryPhrase(recovery_phrase) => Self {
-                pubkey: recovery_phrase.pubkey,
-                alias: recovery_phrase.alias,
-                credential_id: None,
-                purpose: Some(Purpose::Recovery),
-                key_type: Some(KeyType::SeedPhrase),
-                protection: Some(recovery_phrase.protection),
-            },
-            Device::WebAuthnDevice(webauthn_device) => Self {
-                pubkey: webauthn_device.pubkey,
-                alias: webauthn_device.alias,
-                credential_id: webauthn_device.credential_id,
-                purpose: Some(webauthn_device.purpose),
-                key_type: Some(KeyType::from(webauthn_device.key_type)),
-                protection: Some(DeviceProtection::Unprotected),
-            },
-        }
-    }
-}
-
-impl From<DeviceDataInternal> for Device {
-    fn from(internal_device: DeviceDataInternal) -> Self {
-        match internal_device.key_type {
-            // note: this strips away the purpose field (which is always recover for recovery phrases)
-            Some(KeyType::SeedPhrase) => Device::RecoveryPhrase(RecoveryPhrase {
-                pubkey: internal_device.pubkey,
-                protection: internal_device
-                    .protection
-                    .unwrap_or(DeviceProtection::Unprotected),
-                alias: internal_device.alias,
-            }),
-            None | Some(_) => Device::WebAuthnDevice(WebAuthnDevice {
-                pubkey: internal_device.pubkey,
-                alias: internal_device.alias,
-                credential_id: internal_device.credential_id,
-                purpose: internal_device.purpose.unwrap_or(Purpose::Authentication),
-                key_type: WebAuthnKeyType::from(
-                    internal_device.key_type.unwrap_or(KeyType::Unknown),
-                ),
-                domain: Domain::Ic0App,
-            }),
-        }
-    }
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-struct RecoveryPhrase {
-    pubkey: DeviceKey,
-    protection: DeviceProtection,
-    // Currently, the II front-end hard codes this to "Recovery phrase". However, there could be
-    // recovery phrases with different name added by different clients (e.g. other front-ends, dfx).
-    alias: String,
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-struct WebAuthnDevice {
-    pubkey: DeviceKey,
-    alias: String,
-    // this is still optional for legacy reasons: We did not validate that all webauthn devices had
-    // a credential id so far thus there might by some devices manually added (e.g. with dfx) that
-    // do not have one.
-    // In the context of the II front-end those devices are useless. But we cannot delete them
-    // as they can be successfully used by e.g. dfx.
-    credential_id: Option<CredentialId>,
-    purpose: Purpose,
-    key_type: WebAuthnKeyType,
-    domain: Domain,
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-enum Domain {
-    Ic0App,    // https://identity.ic0.app
-    NewDomain, // ??
-}
-
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-enum WebAuthnKeyType {
-    Unknown,
-    Platform,
-    CrossPlatform,
-}
-
-impl From<KeyType> for WebAuthnKeyType {
-    fn from(key_type: KeyType) -> Self {
-        match key_type {
-            KeyType::Unknown => WebAuthnKeyType::Unknown,
-            KeyType::Platform => WebAuthnKeyType::Platform,
-            KeyType::CrossPlatform => WebAuthnKeyType::CrossPlatform,
-            KeyType::SeedPhrase => trap("seed phrase is not a WebAuthn key type"),
-        }
-    }
-}
-
-impl From<WebAuthnKeyType> for KeyType {
-    fn from(key_type: WebAuthnKeyType) -> Self {
-        match key_type {
-            WebAuthnKeyType::Unknown => KeyType::Unknown,
-            WebAuthnKeyType::Platform => KeyType::Platform,
-            WebAuthnKeyType::CrossPlatform => KeyType::CrossPlatform,
-        }
-    }
 }
 
 struct RecordMeta {
@@ -383,13 +266,9 @@ impl<M: Memory> Storage<M> {
 
     /// Writes the data of the specified user to stable memory.
     /// Write only happen during update calls so we can use this call to piggy back on.
-    pub fn write(
-        &mut self,
-        user_number: UserNumber,
-        data: Vec<DeviceDataInternal>,
-    ) -> Result<(), StorageError> {
+    pub fn write(&mut self, user_number: UserNumber, anchor: Anchor) -> Result<(), StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
-        self.write_internal(record_number, data)?;
+        self.write_internal(record_number, anchor)?;
         self.migrate_record_batch()
     }
 
@@ -398,21 +277,19 @@ impl<M: Memory> Storage<M> {
     fn write_internal(
         &mut self,
         record_number: u32,
-        data: Vec<DeviceDataInternal>,
+        mut anchor: Anchor,
     ) -> Result<(), StorageError> {
         let record_meta = self.record_meta(record_number);
 
         let data = match record_meta.layout {
-            Layout::V1 => candid::encode_one(data).map_err(StorageError::SerializationError)?,
-            Layout::V3 => {
-                let anchor = Anchor {
-                    devices: data
-                        .into_iter()
-                        .map(|internal_device| Device::from(internal_device))
-                        .collect(),
-                };
-                candid::encode_one(anchor).map_err(StorageError::SerializationError)?
+            Layout::V1 => {
+                // note: this might reorder devices, but since we give no guarantee on the order
+                // this is fine.
+                let mut data = anchor.devices;
+                data.append(&mut anchor.devices_to_migrate);
+                candid::encode_one(data).map_err(StorageError::SerializationError)?
             }
+            Layout::V3 => candid::encode_one(anchor).map_err(StorageError::SerializationError)?,
         };
 
         self.write_entry_bytes(record_meta, data)
@@ -442,30 +319,42 @@ impl<M: Memory> Storage<M> {
     }
 
     /// Reads the data of the specified user from stable memory.
-    pub fn read(&self, user_number: UserNumber) -> Result<Vec<DeviceDataInternal>, StorageError> {
+    pub fn read(&self, user_number: UserNumber) -> Result<Anchor, StorageError> {
         let record_number = self.user_number_to_record(user_number)?;
         self.read_internal(record_number)
     }
 
     /// Internal version of read that operates on record numbers rather than anchors,
     /// which is more suited for the stable memory migration.
-    fn read_internal(&self, record_number: u32) -> Result<Vec<DeviceDataInternal>, StorageError> {
+    fn read_internal(&self, record_number: u32) -> Result<Anchor, StorageError> {
         let record_meta = self.record_meta(record_number);
         let candid_bytes = self.read_entry_bytes(&record_meta);
 
         match record_meta.layout {
             Layout::V1 => {
-                candid::decode_one(&candid_bytes).map_err(StorageError::DeserializationError)
+                let internal_devices: Vec<DeviceDataInternal> =
+                    candid::decode_one(&candid_bytes)
+                        .map_err(StorageError::DeserializationError)?;
+                let mut devices = vec![];
+                let mut devices_to_migrate = vec![];
+                for device in internal_devices {
+                    // we need to migrate everything that is a webauthn device (i.e. has a credential id)
+                    // and is not clearly marked as a recovery phrase
+                    if device.credential_id.is_none()
+                        || device.key_type == Some(KeyType::SeedPhrase)
+                    {
+                        devices.push(device)
+                    } else {
+                        devices_to_migrate.push(device)
+                    }
+                }
+                Ok(Anchor {
+                    devices,
+                    devices_to_migrate,
+                })
             }
             Layout::V3 => {
-                let anchor: Anchor = candid::decode_one(&candid_bytes)
-                    .map_err(StorageError::DeserializationError)?;
-                let devices = anchor
-                    .devices
-                    .into_iter()
-                    .map(|device| DeviceDataInternal::from(device))
-                    .collect();
-                Ok(devices)
+                candid::decode_one(&candid_bytes).map_err(StorageError::DeserializationError)
             }
         }
     }

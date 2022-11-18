@@ -21,6 +21,12 @@ thread_local! {
     static ASSETS: RefCell<Assets> = RefCell::new(HashMap::default());
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+pub struct Anchor {
+    pub devices: Vec<DeviceDataInternal>,
+    pub devices_to_migrate: Vec<DeviceDataInternal>,
+}
+
 /// This is an internal version of `DeviceData` primarily useful to provide a
 /// backwards compatible level between older device data stored in stable memory
 /// (that might not contain purpose or key_type) and new ones added.
