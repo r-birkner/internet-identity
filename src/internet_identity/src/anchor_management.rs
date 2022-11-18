@@ -11,10 +11,14 @@ pub mod registration;
 pub mod tentative_device_registration;
 
 pub fn get_anchor_info(user_number: UserNumber) -> IdentityAnchorInfo {
-    let entries = state::anchor(user_number).all_devices();
-    trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
+    let anchor = state::anchor(user_number);
+    trap_if_not_authenticated(&anchor);
 
-    let devices = entries.into_iter().map(DeviceData::from).collect();
+    let devices = anchor
+        .into_devices()
+        .into_iter()
+        .map(DeviceData::from)
+        .collect();
     let now = time();
 
     state::tentative_device_registrations(|tentative_device_registrations| {
@@ -52,9 +56,11 @@ pub fn get_anchor_info(user_number: UserNumber) -> IdentityAnchorInfo {
 pub async fn add(user_number: UserNumber, device_data: DeviceData) {
     const MAX_ENTRIES_PER_USER: usize = 10;
 
-    let mut entries = state::anchor(user_number).all_devices();
+    let anchor = state::anchor(user_number);
+    trap_if_not_authenticated(&anchor);
+
+    let mut entries = anchor.into_devices();
     // must be called before the first await because it requires caller()
-    trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
     let caller = caller(); // caller is only available before await
     state::ensure_salt_set().await;
 
@@ -139,9 +145,10 @@ pub async fn update(user_number: UserNumber, device_key: DeviceKey, device_data:
     if device_key != device_data.pubkey {
         trap("device key may not be updated");
     }
-    let mut entries = state::anchor(user_number).all_devices();
+    let anchor = state::anchor(user_number);
+    trap_if_not_authenticated(&anchor);
 
-    trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
+    let mut entries = anchor.into_devices();
     check_device(&device_data, &entries);
 
     let operation = mutate_device_or_trap(&mut entries, device_key, Some(device_data));
@@ -154,14 +161,15 @@ pub async fn update(user_number: UserNumber, device_key: DeviceKey, device_data:
 }
 
 pub async fn remove(user_number: UserNumber, device_key: DeviceKey) {
-    let mut entries = state::anchor(user_number).all_devices();
     // must be called before the first await because it requires caller()
-    trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
+    let anchor = state::anchor(user_number);
+    trap_if_not_authenticated(&anchor);
 
     let caller = caller(); // caller is only available before await
     state::ensure_salt_set().await;
     delegation::prune_expired_signatures();
 
+    let mut entries = state::anchor(user_number).into_devices();
     let operation = mutate_device_or_trap(&mut entries, device_key, None);
     write_anchor_data(user_number, Anchor::from(entries));
 

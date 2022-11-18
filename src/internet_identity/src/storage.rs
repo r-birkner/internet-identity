@@ -275,7 +275,7 @@ impl<M: Memory> Storage<M> {
         let record_meta = self.record_meta(record_number);
 
         let data = match record_meta.layout {
-            Layout::V1 => candid::encode_one(anchor.all_devices())
+            Layout::V1 => candid::encode_one(anchor.into_devices())
                 .map_err(StorageError::SerializationError)?,
             Layout::V3 => candid::encode_one(anchor).map_err(StorageError::SerializationError)?,
         };

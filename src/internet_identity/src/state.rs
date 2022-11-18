@@ -11,6 +11,8 @@ use internet_identity::signature_map::SignatureMap;
 use internet_identity_interface::*;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
+use std::iter::Chain;
+use std::slice::Iter;
 use std::time::Duration;
 
 pub type Assets = HashMap<&'static str, (Vec<HeaderField>, &'static [u8])>;
@@ -28,11 +30,15 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn all_devices(mut self) -> Vec<DeviceDataInternal> {
+    pub fn into_devices(mut self) -> Vec<DeviceDataInternal> {
         let mut devices = vec![];
         devices.append(&mut self.devices);
         devices.append(&mut self.devices_to_migrate);
         devices
+    }
+
+    pub fn all_devices(&self) -> Chain<Iter<DeviceDataInternal>, Iter<DeviceDataInternal>> {
+        self.devices.iter().chain(self.devices_to_migrate.iter())
     }
 }
 
