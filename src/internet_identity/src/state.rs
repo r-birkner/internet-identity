@@ -2,6 +2,7 @@ use crate::archive::{ArchiveData, ArchiveInfo, ArchiveState, ArchiveStatusCache}
 use crate::storage::{PersistentStateError, DEFAULT_RANGE_SIZE_V1};
 use crate::{Salt, Storage};
 use candid::{CandidType, Deserialize, Principal};
+use canister_tests::framework::device_data_1;
 use ic_cdk::api::management_canister::main::CanisterStatusResponse;
 use ic_cdk::api::time;
 use ic_cdk::{call, trap};
@@ -25,6 +26,36 @@ thread_local! {
 pub struct Anchor {
     pub devices: Vec<DeviceDataInternal>,
     pub devices_to_migrate: Vec<DeviceDataInternal>,
+}
+
+impl Anchor {
+    pub fn to_devices(self) -> Vec<DeviceDataInternal> {
+        devices = vec![];
+        devices.append(self.devices);
+        devices.append(self.devices_to_migrate);
+        devices
+    }
+}
+
+impl From<Vec<DeviceDataInternal>> for Anchor {
+    fn from(internal_devices: Vec<DeviceDataInternal>) -> Self {
+        let mut devices = vec![];
+        let mut devices_to_migrate = vec![];
+        for device in internal_devices {
+            // we need to migrate everything that is a webauthn device (i.e. has a credential id)
+            // and is not clearly marked as a recovery phrase
+            if device.credential_id.is_none() || device.key_type == Some(KeyType::SeedPhrase) {
+                devices.push(device)
+            } else {
+                devices_to_migrate.push(device)
+            }
+        }
+
+        Self {
+            devices,
+            devices_to_migrate,
+        }
+    }
 }
 
 /// This is an internal version of `DeviceData` primarily useful to provide a

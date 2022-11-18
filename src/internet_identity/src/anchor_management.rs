@@ -1,6 +1,6 @@
 use crate::archive::{archive_operation, device_diff};
 use crate::state::RegistrationState::DeviceTentativelyAdded;
-use crate::state::{DeviceDataInternal, TentativeDeviceRegistration};
+use crate::state::{Anchor, DeviceDataInternal, TentativeDeviceRegistration};
 use crate::{delegation, state, trap_if_not_authenticated};
 use candid::Principal;
 use ic_cdk::api::time;
@@ -169,9 +169,9 @@ pub async fn remove(user_number: UserNumber, device_key: DeviceKey) {
 }
 
 /// Writes the supplied entries to stable memory and updates the anchor operation metric.
-fn write_anchor_data(user_number: UserNumber, entries: Vec<DeviceDataInternal>) {
+fn write_anchor_data(user_number: UserNumber, anchor: Anchor) {
     state::storage_mut(|storage| {
-        storage.write(user_number, entries).unwrap_or_else(|err| {
+        storage.write(user_number, anchor).unwrap_or_else(|err| {
             trap(&format!(
                 "failed to write device data of user {}: {}",
                 user_number, err

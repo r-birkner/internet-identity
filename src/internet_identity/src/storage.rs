@@ -335,23 +335,7 @@ impl<M: Memory> Storage<M> {
                 let internal_devices: Vec<DeviceDataInternal> =
                     candid::decode_one(&candid_bytes)
                         .map_err(StorageError::DeserializationError)?;
-                let mut devices = vec![];
-                let mut devices_to_migrate = vec![];
-                for device in internal_devices {
-                    // we need to migrate everything that is a webauthn device (i.e. has a credential id)
-                    // and is not clearly marked as a recovery phrase
-                    if device.credential_id.is_none()
-                        || device.key_type == Some(KeyType::SeedPhrase)
-                    {
-                        devices.push(device)
-                    } else {
-                        devices_to_migrate.push(device)
-                    }
-                }
-                Ok(Anchor {
-                    devices,
-                    devices_to_migrate,
-                })
+                Ok(Anchor::from(internal_devices))
             }
             Layout::V3 => {
                 candid::decode_one(&candid_bytes).map_err(StorageError::DeserializationError)
