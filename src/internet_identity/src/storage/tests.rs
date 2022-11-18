@@ -128,13 +128,13 @@ fn should_deserialize_first_record() {
     let user_number = storage.allocate_user_number().unwrap();
     assert_eq!(user_number, 123u64);
 
-    let device_vec = sample_anchor_record();
-    let buf = candid::encode_one(&device_vec).unwrap();
+    let anchor = sample_anchor_record();
+    let buf = candid::encode_one(&anchor.clone().into_devices()).unwrap();
     memory.write(512, &(buf.len() as u16).to_le_bytes());
     memory.write(514, &buf);
 
     let read_from_storage = storage.read(123).unwrap();
-    assert_eq!(read_from_storage, device_vec);
+    assert_eq!(read_from_storage, anchor);
 }
 
 #[test]
@@ -149,8 +149,8 @@ fn should_deserialize_subsequent_record_at_expected_memory_location() {
     let user_number = storage.allocate_user_number().unwrap();
     assert_eq!(user_number, 223u64);
 
-    let device_vec = sample_anchor_record();
-    let buf = candid::encode_one(&device_vec).unwrap();
+    let anchor = sample_anchor_record();
+    let buf = candid::encode_one(&anchor.clone().into_devices()).unwrap();
     memory.write(
         512 + EXPECTED_RECORD_OFFSET,
         &(buf.len() as u16).to_le_bytes(),
@@ -158,7 +158,7 @@ fn should_deserialize_subsequent_record_at_expected_memory_location() {
     memory.write(514 + EXPECTED_RECORD_OFFSET, &buf);
 
     let read_from_storage = storage.read(223).unwrap();
-    assert_eq!(read_from_storage, device_vec);
+    assert_eq!(read_from_storage, anchor);
 }
 
 #[test]
