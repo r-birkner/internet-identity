@@ -1,5 +1,5 @@
 use crate::archive::{ArchiveData, ArchiveInfo, ArchiveState};
-use crate::state::{DeviceDataInternal, PersistentState};
+use crate::state::{Anchor, DeviceDataInternal, PersistentState};
 use crate::storage::{Header, PersistentStateError, StorageError};
 use crate::Storage;
 use candid::Principal;
@@ -86,7 +86,7 @@ fn should_serialize_first_record() {
     let mut buf = [0u8; 192];
     memory.read(512, &mut buf);
     let decoded_from_memory: Vec<DeviceDataInternal> = candid::decode_one(&buf[2..]).unwrap();
-    assert_eq!(decoded_from_memory, device_vec);
+    assert_eq!(decoded_from_memory, device_vec.into_devices());
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn should_serialize_subsequent_record_to_expected_memory_location() {
     let mut buf = [0u8; 192];
     memory.read(512 + EXPECTED_RECORD_OFFSET, &mut buf);
     let decoded_from_memory: Vec<DeviceDataInternal> = candid::decode_one(&buf[2..]).unwrap();
-    assert_eq!(decoded_from_memory, device_vec);
+    assert_eq!(decoded_from_memory, device_vec.into_devices());
 }
 
 #[test]
@@ -337,16 +337,15 @@ fn layout_v1_storage(
     Storage::from_memory(memory.clone()).unwrap()
 }
 
-fn sample_anchor_record() -> Vec<DeviceDataInternal> {
-    let device_vec = vec![DeviceDataInternal {
+fn sample_anchor_record() -> Anchor {
+    Anchor::from(vec![DeviceDataInternal {
         pubkey: ByteBuf::from("hello world, I am a public key"),
         alias: "my test device".to_string(),
         credential_id: Some(ByteBuf::from("this is the credential id")),
         purpose: Some(Purpose::Authentication),
         key_type: Some(KeyType::Unknown),
         protection: Some(DeviceProtection::Protected),
-    }];
-    device_vec
+    }])
 }
 
 fn sample_persistent_state() -> PersistentState {
