@@ -93,6 +93,7 @@ fn lookup(user_number: UserNumber) -> Vec<DeviceData> {
         storage
             .read(user_number)
             .unwrap_or_default()
+            .all_devices()
             .into_iter()
             .map(DeviceData::from)
             .collect()

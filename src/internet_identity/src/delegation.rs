@@ -27,7 +27,7 @@ pub async fn prepare_delegation(
     session_key: SessionKey,
     max_time_to_live: Option<u64>,
 ) -> (UserKey, Timestamp) {
-    let entries = state::anchor_devices(user_number);
+    let entries = state::anchor(user_number).all_devices();
     // must be called before the first await because it requires caller()
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
@@ -64,7 +64,7 @@ pub fn get_delegation(
 ) -> GetDelegationResponse {
     check_frontend_length(&frontend);
 
-    let entries = state::anchor_devices(user_number);
+    let entries = state::anchor(user_number).all_devices();
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
     state::asset_hashes_and_sigs(|asset_hashes, sigs| {
@@ -91,7 +91,7 @@ pub fn get_delegation(
 pub fn get_principal(user_number: UserNumber, frontend: FrontendHostname) -> Principal {
     check_frontend_length(&frontend);
 
-    let entries = state::anchor_devices(user_number);
+    let entries = state::anchor(user_number).all_devices();
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
     let seed = calculate_seed(user_number, &frontend);

@@ -58,14 +58,11 @@
 
 use crate::state::{Anchor, DeviceDataInternal, PersistentState};
 use candid;
-use candid::{CandidType, Deserialize};
 use ic_cdk::api::trap;
 use ic_stable_structures::reader::{BufferedReader, OutOfBounds, Reader};
 use ic_stable_structures::writer::{BufferedWriter, Writer};
 use ic_stable_structures::Memory;
-use internet_identity_interface::{
-    CredentialId, DeviceKey, DeviceProtection, KeyType, MigrationState, Purpose, UserNumber,
-};
+use internet_identity_interface::{MigrationState, UserNumber};
 use std::convert::TryInto;
 use std::fmt;
 use std::io::{Read, Write};
@@ -274,11 +271,7 @@ impl<M: Memory> Storage<M> {
 
     /// Internal version of write that operates on record numbers rather than anchors,
     /// which is more suited for the stable memory migration.
-    fn write_internal(
-        &mut self,
-        record_number: u32,
-        mut anchor: Anchor,
-    ) -> Result<(), StorageError> {
+    fn write_internal(&mut self, record_number: u32, anchor: Anchor) -> Result<(), StorageError> {
         let record_meta = self.record_meta(record_number);
 
         let data = match record_meta.layout {

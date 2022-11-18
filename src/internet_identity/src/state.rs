@@ -2,7 +2,6 @@ use crate::archive::{ArchiveData, ArchiveInfo, ArchiveState, ArchiveStatusCache}
 use crate::storage::{PersistentStateError, DEFAULT_RANGE_SIZE_V1};
 use crate::{Salt, Storage};
 use candid::{CandidType, Deserialize, Principal};
-use canister_tests::framework::device_data_1;
 use ic_cdk::api::management_canister::main::CanisterStatusResponse;
 use ic_cdk::api::time;
 use ic_cdk::{call, trap};
@@ -22,17 +21,17 @@ thread_local! {
     static ASSETS: RefCell<Assets> = RefCell::new(HashMap::default());
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, CandidType, Deserialize, Eq, PartialEq)]
 pub struct Anchor {
     pub devices: Vec<DeviceDataInternal>,
     pub devices_to_migrate: Vec<DeviceDataInternal>,
 }
 
 impl Anchor {
-    pub fn all_devices(self) -> Vec<DeviceDataInternal> {
-        devices = vec![];
-        devices.append(self.devices);
-        devices.append(self.devices_to_migrate);
+    pub fn all_devices(mut self) -> Vec<DeviceDataInternal> {
+        let mut devices = vec![];
+        devices.append(&mut self.devices);
+        devices.append(&mut self.devices_to_migrate);
         devices
     }
 }
@@ -300,7 +299,7 @@ pub fn load_persistent_state() {
 
 // helper methods to access / modify the state in a convenient way
 
-pub fn anchor_devices(anchor: UserNumber) -> Vec<DeviceDataInternal> {
+pub fn anchor(anchor: UserNumber) -> Anchor {
     STATE.with(|s| {
         s.storage.borrow().read(anchor).unwrap_or_else(|err| {
             trap(&format!(

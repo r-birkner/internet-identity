@@ -11,7 +11,7 @@ pub mod registration;
 pub mod tentative_device_registration;
 
 pub fn get_anchor_info(user_number: UserNumber) -> IdentityAnchorInfo {
-    let entries = state::anchor_devices(user_number);
+    let entries = state::anchor(user_number).all_devices();
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
     let devices = entries.into_iter().map(DeviceData::from).collect();
@@ -52,7 +52,7 @@ pub fn get_anchor_info(user_number: UserNumber) -> IdentityAnchorInfo {
 pub async fn add(user_number: UserNumber, device_data: DeviceData) {
     const MAX_ENTRIES_PER_USER: usize = 10;
 
-    let mut entries = state::anchor_devices(user_number);
+    let mut entries = state::anchor(user_number).all_devices();
     // must be called before the first await because it requires caller()
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
     let caller = caller(); // caller is only available before await
@@ -76,7 +76,7 @@ pub async fn add(user_number: UserNumber, device_data: DeviceData) {
     }
 
     entries.push(DeviceDataInternal::from(device_data.clone()));
-    write_anchor_data(user_number, entries);
+    write_anchor_data(user_number, Anchor::from(entries));
 
     delegation::prune_expired_signatures();
 
@@ -139,14 +139,14 @@ pub async fn update(user_number: UserNumber, device_key: DeviceKey, device_data:
     if device_key != device_data.pubkey {
         trap("device key may not be updated");
     }
-    let mut entries = state::anchor_devices(user_number);
+    let mut entries = state::anchor(user_number).all_devices();
 
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
     check_device(&device_data, &entries);
 
     let operation = mutate_device_or_trap(&mut entries, device_key, Some(device_data));
 
-    write_anchor_data(user_number, entries);
+    write_anchor_data(user_number, Anchor::from(entries));
 
     delegation::prune_expired_signatures();
 
@@ -154,7 +154,7 @@ pub async fn update(user_number: UserNumber, device_key: DeviceKey, device_data:
 }
 
 pub async fn remove(user_number: UserNumber, device_key: DeviceKey) {
-    let mut entries = state::anchor_devices(user_number);
+    let mut entries = state::anchor(user_number).all_devices();
     // must be called before the first await because it requires caller()
     trap_if_not_authenticated(entries.iter().map(|e| &e.pubkey));
 
@@ -163,7 +163,7 @@ pub async fn remove(user_number: UserNumber, device_key: DeviceKey) {
     delegation::prune_expired_signatures();
 
     let operation = mutate_device_or_trap(&mut entries, device_key, None);
-    write_anchor_data(user_number, entries);
+    write_anchor_data(user_number, Anchor::from(entries));
 
     archive_operation(user_number, caller, operation);
 }
