@@ -282,13 +282,8 @@ impl<M: Memory> Storage<M> {
         let record_meta = self.record_meta(record_number);
 
         let data = match record_meta.layout {
-            Layout::V1 => {
-                // note: this might reorder devices, but since we give no guarantee on the order
-                // this is fine.
-                let mut data = anchor.devices;
-                data.append(&mut anchor.devices_to_migrate);
-                candid::encode_one(data).map_err(StorageError::SerializationError)?
-            }
+            Layout::V1 => candid::encode_one(anchor.all_devices())
+                .map_err(StorageError::SerializationError)?,
             Layout::V3 => candid::encode_one(anchor).map_err(StorageError::SerializationError)?,
         };
 

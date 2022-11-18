@@ -29,7 +29,7 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn to_devices(self) -> Vec<DeviceDataInternal> {
+    pub fn all_devices(self) -> Vec<DeviceDataInternal> {
         devices = vec![];
         devices.append(self.devices);
         devices.append(self.devices_to_migrate);
