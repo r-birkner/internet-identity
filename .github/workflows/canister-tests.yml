@@ -298,7 +298,7 @@ jobs:
         run: |
           # we don't want to compile our code here (only dependencies),
           # so wie substitute dummy lib.rs files the same way as in the docker build
-          rm -rf src
+          find . -name "src/*.rs" -type f -delete # filter for *.rs so we don't delete the Cargo.toml files
           mkdir -p src/internet_identity/src
           touch src/internet_identity/src/lib.rs
           mkdir -p src/internet_identity_interface/src
