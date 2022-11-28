@@ -296,14 +296,23 @@ jobs:
 
       - name: Dependencies (build)
         run: |
-          # exclude all the workspace members to get the dependencies only
-          cargo build --workspace --tests --release --frozen \
-            --exclude archive \
-            --exclude internet_identity \
-            --exclude internet_identity_interface \
-            --exclude metrics_encoder \
-            --exclude canister_tests
+          # we don't want to compile our code here (only dependencies),
+          # so wie substitute dummy lib.rs files the same way as in the docker build
+          rm -rf src
+          mkdir -p src/internet_identity/src
+          touch src/internet_identity/src/lib.rs
+          mkdir -p src/internet_identity_interface/src
+          touch src/internet_identity_interface/src/lib.rs
+          mkdir -p src/archive/src
+          touch src/archive/src/lib.rs
+          mkdir -p src/canister_tests/src
+          touch src/canister_tests/src/lib.rs
+          mkdir -p src/metrics_encoder/src
+          touch src/metrics_encoder/src/lib.rs
+          cargo build --tests --release --frozen
           
+          # delete the dummy files again
+          rm -rf src
 
       - name: Dependencies (save to cache)
         if: steps.cache-deps.outputs.cache-hit != 'true'
