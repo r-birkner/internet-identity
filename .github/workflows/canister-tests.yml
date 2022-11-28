@@ -295,7 +295,15 @@ jobs:
           find "/tmp/target-deps/" -exec touch -t "$mtime" {} +
 
       - name: Dependencies (build)
-        run: cargo build --tests --release --frozen
+        run: |
+          # exclude all the workspace members to get the dependencies only
+          cargo build --workspace --tests --release --frozen \
+            --exclude archive \
+            --exclude internet_identity \
+            --exclude internet_identity_interface \
+            --exclude metrics_encoder \
+            --exclude canister_tests
+          
 
       - name: Dependencies (save to cache)
         if: steps.cache-deps.outputs.cache-hit != 'true'
