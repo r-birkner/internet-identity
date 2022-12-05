@@ -266,36 +266,38 @@ const renderDevices = async (
   const recoveryList = document.createElement("ul");
   const isOnlyDevice = devices.length < 2;
 
-  devices.forEach((device) => {
-    const identityElement = document.createElement("li");
-    identityElement.className = "c-action-list__item";
+  devices
+    .filter((device) => device.alias !== "tmp-delete-me")
+    .forEach((device) => {
+      const identityElement = document.createElement("li");
+      identityElement.className = "c-action-list__item";
 
-    render(deviceListItem(device), identityElement);
-    const buttonSettings = identityElement.querySelector(
-      "button[data-action=settings]"
-    ) as HTMLButtonElement;
-    if (buttonSettings !== null) {
-      buttonSettings.onclick = async () => {
-        await deviceSettings(
-          userNumber,
-          connection,
-          device,
-          isOnlyDevice
-        ).catch((e) =>
-          displayError({
-            title: "Could not edit device",
-            message: "An error happened on the settings page.",
-            detail: e.toString(),
-            primaryButton: "Ok",
-          })
-        );
-        await renderManage(userNumber, connection);
-      };
-    }
-    hasOwnProperty(device.purpose, "recovery")
-      ? recoveryList.appendChild(identityElement)
-      : list.appendChild(identityElement);
-  });
+      render(deviceListItem(device), identityElement);
+      const buttonSettings = identityElement.querySelector(
+        "button[data-action=settings]"
+      ) as HTMLButtonElement;
+      if (buttonSettings !== null) {
+        buttonSettings.onclick = async () => {
+          await deviceSettings(
+            userNumber,
+            connection,
+            device,
+            isOnlyDevice
+          ).catch((e) =>
+            displayError({
+              title: "Could not edit device",
+              message: "An error happened on the settings page.",
+              detail: e.toString(),
+              primaryButton: "Ok",
+            })
+          );
+          await renderManage(userNumber, connection);
+        };
+      }
+      hasOwnProperty(device.purpose, "recovery")
+        ? recoveryList.appendChild(identityElement)
+        : list.appendChild(identityElement);
+    });
   const deviceList = document.getElementById("deviceList") as HTMLElement;
   deviceList.innerHTML = ``;
   deviceList.appendChild(list);

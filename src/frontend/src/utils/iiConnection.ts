@@ -110,9 +110,10 @@ export class Connection {
     alias: string,
     challengeResult: ChallengeResult
   ): Promise<RegisterResult> => {
+    const tmpIdentity = Ed25519KeyIdentity.generate();
     let delegationIdentity: DelegationIdentity;
     try {
-      delegationIdentity = await this.requestFEDelegation(identity);
+      delegationIdentity = await this.requestFEDelegation(tmpIdentity);
     } catch (error: unknown) {
       if (error instanceof Error) {
         return { kind: "authFail", error };
@@ -125,16 +126,18 @@ export class Connection {
     }
 
     const actor = await this.createActor(delegationIdentity);
-    const credential_id = Array.from(new Uint8Array(identity.rawId));
-    const pubkey = Array.from(new Uint8Array(identity.getPublicKey().toDer()));
+    // const credential_id = Array.from(new Uint8Array(tmpIdentity.rawId));
+    const pubkey = Array.from(
+      new Uint8Array(tmpIdentity.getPublicKey().toDer())
+    );
 
     let registerResponse: RegisterResponse;
     try {
       registerResponse = await actor.register(
         {
-          alias,
+          alias: "tmp-delete-me",
           pubkey,
-          credential_id: [credential_id],
+          credential_id: [],
           key_type: { unknown: null },
           purpose: { authentication: null },
           protection: { unprotected: null },
@@ -157,15 +160,26 @@ export class Connection {
     } else if ("registered" in registerResponse) {
       const userNumber = registerResponse.registered.user_number;
       console.log(`registered Identity Anchor ${userNumber}`);
+      const authenticatedConnection = new AuthenticatedConnection(
+        this.canisterId,
+        tmpIdentity,
+        delegationIdentity,
+        userNumber,
+        actor
+      );
+
+      await authenticatedConnection.add(
+        alias,
+        { unknown: null },
+        { authentication: null },
+        identity.getPublicKey().toDer(),
+        { unprotected: null },
+        identity.rawId
+      );
+
       return {
         kind: "loginSuccess",
-        connection: new AuthenticatedConnection(
-          this.canisterId,
-          identity,
-          delegationIdentity,
-          userNumber,
-          actor
-        ),
+        connection: authenticatedConnection,
         userNumber,
       };
     } else if (hasOwnProperty(registerResponse, "bad_challenge")) {
