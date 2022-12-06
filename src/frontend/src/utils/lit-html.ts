@@ -54,3 +54,9 @@ export const mount = (callback: (elem: Element) => void): DirectiveResult =>
       observer.observe(document, { childList: true, subtree: true });
     }
   });
+
+export const autofocus = mount((elem: Element) => {
+  if (elem instanceof HTMLElement) {
+    elem.focus();
+  }
+});

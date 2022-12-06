@@ -203,6 +203,29 @@ export class Chan<A> {
       });
     }
   }
+
+  // TODO this is OutChan
+  async *map<B>(f: (a: A) => B): AsyncIterable<B> {
+    for await (const val of this.recv()) {
+      yield f(val);
+    }
+  }
+
+  // TODO: A is an InChan, A1, A1 are OutChans
+  split<A1, A2>(f: (a: A) => [A1, A2]): [Chan<A1>, Chan<A2>] {
+    const a1 = new Chan<A1>();
+    const a2 = new Chan<A2>();
+
+    setTimeout(async () => {
+      for await (const val of this.recv()) {
+        const [r1, r2] = f(val);
+        a1.send(r1);
+        a2.send(r2);
+      }
+    });
+
+    return [a1, a2];
+  }
 }
 
 /** Return a random string of size 10

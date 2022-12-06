@@ -1,8 +1,11 @@
 import { Connection } from "../../utils/iiConnection";
 import { unknownToString } from "../../utils/utils";
-import { confirmRegister } from "./captcha";
-import { makeCaptcha } from "./captcha";
-import { LoginFlowResult, cancel } from "../../utils/flowResult";
+import { promptCaptcha } from "./captcha";
+import {
+  apiResultToLoginFlowResult,
+  LoginFlowResult,
+  cancel,
+} from "../../utils/flowResult";
 import { constructIdentity } from "./construct";
 import { promptDeviceAlias } from "./alias";
 
@@ -19,18 +22,24 @@ export const register = async ({
     }
 
     const [captcha, identity] = await Promise.all([
-      makeCaptcha(connection),
+      connection.createChallenge(),
       constructIdentity(),
     ]);
 
-    const result = await confirmRegister(
+    const result = await promptCaptcha({
       connection,
-      Promise.resolve(captcha),
+      challenge: Promise.resolve(captcha),
       identity,
-      alias
-    );
+      alias,
+    });
 
-    return result;
+    if ("tag" in result) {
+      return result;
+    } else {
+      const foo = apiResultToLoginFlowResult(result);
+      // TODO: displayUserNumber + setAnchorUsed here
+      return foo;
+    }
   } catch (e) {
     return {
       tag: "err",
