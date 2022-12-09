@@ -24,6 +24,13 @@ jobs:
       # Make sure that one failing test does not cancel all other matrix jobs
       fail-fast: false
     steps:
+      - name: Install fixed google chrome version
+        run: |
+          VERSION_STRING="107.0.5304.121"
+          wget "https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${VERSION_STRING}_amd64.deb"
+          sudo dpkg -i "google-chrome-stable_${VERSION_STRING}_amd64.deb"
+      - name: Print chrome version
+        run: google-chrome --version
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup-node
       - run: rm -v -f screenshots/${{ matrix.device }}*.png
