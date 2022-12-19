@@ -3,10 +3,8 @@ use canister_tests::api::archive as api;
 use canister_tests::framework::*;
 use ic_state_machine_tests::ErrorCode::CanisterCalledTrap;
 use ic_state_machine_tests::{CanisterId, StateMachine};
-use internet_identity_interface::{
-    ArchiveInit, Cursor, DeviceDataUpdate, DeviceDataWithoutAlias, DeviceProtection, Entry,
-    HttpRequest, KeyType, Operation, Purpose, Timestamp, UserNumber,
-};
+use internet_identity_interface::archive::*;
+use internet_identity_interface::*;
 use regex::Regex;
 use serde_bytes::ByteBuf;
 use std::time::{Duration, SystemTime};
