@@ -632,7 +632,7 @@ pub fn log_entry_2() -> types::Entry {
     }
 }
 
-pub fn log_entry(idx: u64, timestamp: u64, anchor: types::Anchor) -> types::Entry {
+pub fn log_entry(idx: u64, timestamp: u64, anchor: types::AnchorNumber) -> types::Entry {
     types::Entry {
         timestamp,
         anchor,

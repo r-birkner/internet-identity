@@ -178,7 +178,7 @@ impl Storable for ConfigState {
 /// Changing the (serialized) size of this value requires a stable memory migration.
 #[derive(Eq, PartialEq, Debug)]
 struct AnchorIndexKey {
-    anchor: Anchor,
+    anchor: AnchorNumber,
     timestamp: Timestamp,
     log_index: LogIndex,
 }
@@ -229,7 +229,7 @@ impl BoundedStorable for AnchorIndexKey {
 }
 
 #[update]
-fn write_entry(anchor: Anchor, timestamp: Timestamp, entry: ByteBuf) {
+fn write_entry(anchor: AnchorNumber, timestamp: Timestamp, entry: ByteBuf) {
     with_config(|config| {
         if config.ii_canister != caller() {
             trap(&format!(
@@ -282,7 +282,11 @@ fn get_entries(index: Option<u64>, limit: Option<u16>) -> Entries {
 }
 
 #[query]
-fn get_anchor_entries(anchor: Anchor, cursor: Option<Cursor>, limit: Option<u16>) -> AnchorEntries {
+fn get_anchor_entries(
+    anchor: AnchorNumber,
+    cursor: Option<Cursor>,
+    limit: Option<u16>,
+) -> AnchorEntries {
     let limit = limit_or_default(limit);
 
     with_anchor_index_mut(|index| {
