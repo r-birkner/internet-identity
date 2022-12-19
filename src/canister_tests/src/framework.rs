@@ -11,7 +11,8 @@ use ic_state_machine_tests::{
 use ic_types::crypto::Signable;
 use ic_types::messages::Delegation;
 use ic_types::Time;
-use internet_identity_interface as types;
+use internet_identity_interface::archive::*;
+use internet_identity_interface::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde_bytes::ByteBuf;
@@ -148,14 +149,14 @@ pub fn install_ii_canister(env: &StateMachine, wasm: Vec<u8>) -> CanisterId {
 pub fn install_ii_canister_with_arg(
     env: &StateMachine,
     wasm: Vec<u8>,
-    arg: Option<types::InternetIdentityInit>,
+    arg: Option<InternetIdentityInit>,
 ) -> CanisterId {
     let byts = candid::encode_one(arg).expect("error encoding II installation arg as candid");
     env.install_canister(wasm, byts, None).unwrap()
 }
 
-pub fn arg_with_wasm_hash(wasm: Vec<u8>) -> Option<types::InternetIdentityInit> {
-    Some(types::InternetIdentityInit {
+pub fn arg_with_wasm_hash(wasm: Vec<u8>) -> Option<InternetIdentityInit> {
+    Some(InternetIdentityInit {
         assigned_user_number_range: None,
         archive_module_hash: Some(archive_wasm_hash(&wasm)),
         canister_creation_cycles_cost: Some(0),
@@ -177,7 +178,7 @@ pub fn upgrade_ii_canister_with_arg(
     env: &StateMachine,
     canister_id: CanisterId,
     wasm: Vec<u8>,
-    arg: Option<types::InternetIdentityInit>,
+    arg: Option<InternetIdentityInit>,
 ) -> Result<(), UserError> {
     let byts = candid::encode_one(arg).expect("error encoding II upgrade arg as candid");
     env.upgrade_canister(canister_id, wasm, byts)
@@ -232,58 +233,58 @@ pub fn principal_recovery_2() -> PrincipalId {
     PrincipalId(Principal::self_authenticating(RECOVERY_PUBKEY_2))
 }
 
-pub fn device_data_1() -> types::DeviceData {
-    types::DeviceData {
+pub fn device_data_1() -> DeviceData {
+    DeviceData {
         pubkey: ByteBuf::from(PUBKEY_1),
         alias: "My Device".to_string(),
         credential_id: None,
-        purpose: types::Purpose::Authentication,
-        key_type: types::KeyType::Unknown,
-        protection: types::DeviceProtection::Unprotected,
+        purpose: Purpose::Authentication,
+        key_type: KeyType::Unknown,
+        protection: DeviceProtection::Unprotected,
     }
 }
 
-pub fn device_data_2() -> types::DeviceData {
-    types::DeviceData {
+pub fn device_data_2() -> DeviceData {
+    DeviceData {
         pubkey: ByteBuf::from(PUBKEY_2),
         alias: "My second device".to_string(),
         credential_id: None,
-        purpose: types::Purpose::Authentication,
-        key_type: types::KeyType::Unknown,
-        protection: types::DeviceProtection::Unprotected,
+        purpose: Purpose::Authentication,
+        key_type: KeyType::Unknown,
+        protection: DeviceProtection::Unprotected,
     }
 }
 
-pub fn max_size_device() -> types::DeviceData {
-    types::DeviceData {
+pub fn max_size_device() -> DeviceData {
+    DeviceData {
         pubkey: ByteBuf::from([255u8; 300]),
         alias: "a".repeat(64).to_string(),
         credential_id: Some(ByteBuf::from([7u8; 200])),
-        purpose: types::Purpose::Authentication,
-        key_type: types::KeyType::Unknown,
-        protection: types::DeviceProtection::Unprotected,
+        purpose: Purpose::Authentication,
+        key_type: KeyType::Unknown,
+        protection: DeviceProtection::Unprotected,
     }
 }
 
-pub fn recovery_device_data_1() -> types::DeviceData {
-    types::DeviceData {
+pub fn recovery_device_data_1() -> DeviceData {
+    DeviceData {
         pubkey: ByteBuf::from(RECOVERY_PUBKEY_1),
         alias: "Recovery Phrase 1".to_string(),
         credential_id: None,
-        purpose: types::Purpose::Recovery,
-        key_type: types::KeyType::SeedPhrase,
-        protection: types::DeviceProtection::Unprotected,
+        purpose: Purpose::Recovery,
+        key_type: KeyType::SeedPhrase,
+        protection: DeviceProtection::Unprotected,
     }
 }
 
-pub fn recovery_device_data_2() -> types::DeviceData {
-    types::DeviceData {
+pub fn recovery_device_data_2() -> DeviceData {
+    DeviceData {
         pubkey: ByteBuf::from(RECOVERY_PUBKEY_2),
         alias: "Recovery Phrase 2".to_string(),
         credential_id: None,
-        purpose: types::Purpose::Recovery,
-        key_type: types::KeyType::SeedPhrase,
-        protection: types::DeviceProtection::Unprotected,
+        purpose: Purpose::Recovery,
+        key_type: KeyType::SeedPhrase,
+        protection: DeviceProtection::Unprotected,
     }
 }
 
@@ -416,7 +417,7 @@ pub fn expect_user_error_with_message<T: std::fmt::Debug>(
     }
 }
 
-pub fn verify_security_headers(headers: &Vec<types::HeaderField>) {
+pub fn verify_security_headers(headers: &Vec<HeaderField>) {
     let expected_headers = vec![
         ("X-Frame-Options", "DENY"),
         ("X-Content-Type-Options", "nosniff"),
@@ -518,8 +519,8 @@ pub fn assert_metric(metrics: &str, metric_name: &str, expected: u64) {
 pub fn assert_devices_equal(
     env: &StateMachine,
     canister_id: CanisterId,
-    anchor: types::UserNumber,
-    mut expected_devices: Vec<types::DeviceData>,
+    anchor: UserNumber,
+    mut expected_devices: Vec<DeviceData>,
 ) {
     expected_devices.sort_by(|a, b| a.pubkey.cmp(&b.pubkey));
 
@@ -530,8 +531,8 @@ pub fn assert_devices_equal(
 
 pub fn verify_delegation(
     env: &StateMachine,
-    user_key: types::UserKey,
-    signed_delegation: &types::SignedDelegation,
+    user_key: UserKey,
+    signed_delegation: &SignedDelegation,
 ) {
     // transform delegation into ic typed delegation so that we have access to the signature domain separator
     // (via as_signed_bytes)
@@ -557,7 +558,7 @@ pub fn deploy_archive_via_ii(env: &StateMachine, ii_canister: CanisterId) -> Can
         ii_canister,
         ByteBuf::from(ARCHIVE_WASM.clone()),
     ) {
-        Ok(types::DeployArchiveResult::Success(archive_principal)) => {
+        Ok(DeployArchiveResult::Success(archive_principal)) => {
             canister_id_from_principal(archive_principal)
         }
         err => {
@@ -581,70 +582,70 @@ pub fn upgrade_archive_canister(env: &StateMachine, canister_id: CanisterId, was
 }
 
 fn encode_config(authorized_principal: Principal) -> Vec<u8> {
-    let config = types::ArchiveInit {
+    let config = ArchiveInit {
         ii_canister: authorized_principal,
         max_entries_per_call: 10,
     };
     candid::encode_one(config).expect("error encoding II installation arg as candid")
 }
 
-pub const USER_NUMBER_1: types::UserNumber = 100001;
-pub const USER_NUMBER_2: types::UserNumber = 100002;
-pub const USER_NUMBER_3: types::UserNumber = 100003;
+pub const USER_NUMBER_1: UserNumber = 100001;
+pub const USER_NUMBER_2: UserNumber = 100002;
+pub const USER_NUMBER_3: UserNumber = 100003;
 
-pub const TIMESTAMP_1: types::UserNumber = 999991;
-pub const TIMESTAMP_2: types::UserNumber = 999992;
-pub const TIMESTAMP_3: types::UserNumber = 999993;
+pub const TIMESTAMP_1: UserNumber = 999991;
+pub const TIMESTAMP_2: UserNumber = 999992;
+pub const TIMESTAMP_3: UserNumber = 999993;
 
-pub fn log_entry_1() -> types::Entry {
-    types::Entry {
+pub fn log_entry_1() -> Entry {
+    Entry {
         timestamp: TIMESTAMP_1,
         anchor: USER_NUMBER_1,
         caller: principal_1().0,
-        operation: types::Operation::RegisterAnchor {
-            device: types::DeviceDataWithoutAlias {
+        operation: Operation::RegisterAnchor {
+            device: DeviceDataWithoutAlias {
                 pubkey: ByteBuf::from(PUBKEY_1),
                 credential_id: None,
-                purpose: types::Purpose::Authentication,
-                key_type: types::KeyType::Unknown,
-                protection: types::DeviceProtection::Unprotected,
+                purpose: Purpose::Authentication,
+                key_type: KeyType::Unknown,
+                protection: DeviceProtection::Unprotected,
             },
         },
         sequence_number: 0,
     }
 }
 
-pub fn log_entry_2() -> types::Entry {
-    types::Entry {
+pub fn log_entry_2() -> Entry {
+    Entry {
         timestamp: TIMESTAMP_2,
         anchor: USER_NUMBER_2,
         caller: principal_1().0,
-        operation: types::Operation::AddDevice {
-            device: types::DeviceDataWithoutAlias {
+        operation: Operation::AddDevice {
+            device: DeviceDataWithoutAlias {
                 pubkey: ByteBuf::from(PUBKEY_1),
                 credential_id: None,
-                purpose: types::Purpose::Authentication,
-                key_type: types::KeyType::Unknown,
-                protection: types::DeviceProtection::Unprotected,
+                purpose: Purpose::Authentication,
+                key_type: KeyType::Unknown,
+                protection: DeviceProtection::Unprotected,
             },
         },
         sequence_number: 1,
     }
 }
 
-pub fn log_entry(idx: u64, timestamp: u64, anchor: types::AnchorNumber) -> types::Entry {
-    types::Entry {
+pub fn log_entry(idx: u64, timestamp: u64, anchor: AnchorNumber) -> Entry {
+    Entry {
         timestamp,
         anchor,
         caller: PrincipalId::new_user_test_id(idx).0,
-        operation: types::Operation::UpdateDevice {
+        operation: Operation::UpdateDevice {
             device: ByteBuf::from(PUBKEY_1),
-            new_values: types::DeviceDataUpdate {
+            new_values: DeviceDataUpdate {
                 alias: None,
                 credential_id: None,
-                purpose: Some(types::Purpose::Authentication),
+                purpose: Some(Purpose::Authentication),
                 key_type: None,
-                protection: Some(types::DeviceProtection::Unprotected),
+                protection: Some(DeviceProtection::Unprotected),
             },
         },
         sequence_number: idx,
