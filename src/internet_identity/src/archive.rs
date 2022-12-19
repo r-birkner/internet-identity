@@ -9,10 +9,8 @@ use ic_cdk::api::management_canister::main::{
 };
 use ic_cdk::api::time;
 use ic_cdk::{id, notify};
-use internet_identity_interface::{
-    ArchiveInit, DeployArchiveResult, DeviceDataUpdate, Entry, Operation, Private, Timestamp,
-    UserNumber,
-};
+use internet_identity_interface::archive::*;
+use internet_identity_interface::{DeployArchiveResult, Timestamp, UserNumber};
 use serde_bytes::ByteBuf;
 use sha2::Digest;
 use sha2::Sha256;

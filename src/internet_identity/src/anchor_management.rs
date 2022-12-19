@@ -5,6 +5,7 @@ use crate::{delegation, state, trap_if_not_authenticated};
 use candid::Principal;
 use ic_cdk::api::time;
 use ic_cdk::{caller, trap};
+use internet_identity_interface::archive::*;
 use internet_identity_interface::*;
 
 pub mod registration;

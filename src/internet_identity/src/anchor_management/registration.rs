@@ -11,6 +11,7 @@ use rand_core::{RngCore, SeedableRng};
 
 #[cfg(not(feature = "dummy_captcha"))]
 use captcha::filters::Wave;
+use internet_identity_interface::archive::{DeviceDataWithoutAlias, Operation};
 
 // 5 mins
 const CAPTCHA_CHALLENGE_LIFETIME: u64 = secs_to_nanos(300);

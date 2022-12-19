@@ -2,7 +2,7 @@ use crate::{
     AnchorNumber, CredentialId, DeviceData, DeviceKey, DeviceProtection, KeyType, PublicKey,
     Purpose, Timestamp,
 };
-use candid::Principal;
+use candid::{CandidType, Deserialize, Principal};
 use serde_bytes::ByteBuf;
 
 /// Archive specific interface types

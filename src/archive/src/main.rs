@@ -50,6 +50,7 @@ use ic_stable_structures::{
     cell::Cell as StableCell, log::Log, BoundedStorable, DefaultMemoryImpl, Memory as StableMemory,
     RestrictedMemory, StableBTreeMap, Storable,
 };
+use internet_identity_interface::archive::*;
 use internet_identity_interface::*;
 use serde_bytes::ByteBuf;
 use std::borrow::Cow;
